@@ -7,9 +7,18 @@ Created on Wed May 11 13:34:22 2022
 """
 import pandas as pd
 
-class seq_attributes:
+class _seq_attributes:
     'make a sequence object from a partially processed line in a GFF file'
     def __init__(self, line, anot_lst, attributes_dict, *args, **kwargs):
+        """ make a sequence object for a each feature of a given type
+        
+        parameters
+        line (str): the entire feature line in gff file
+        annot_lst (list): beginning of feature line, tab-delimited
+        attribute_dict (dict): second part of feature line. Field are variable depending
+                            how it was annotated
+
+        """
         self.line = line
         self.ID = attributes_dict['ID']
         self.Parent = attributes_dict.get('Parent')
@@ -22,6 +31,9 @@ class seq_attributes:
         self.protein_id = attributes_dict.get('protein_id')
         self.transl_table = attributes_dict.get('transl_table')
         self.gene_biotype = attributes_dict.get('gene_biotype')
+        self.Note = attributes_dict.get('Note')
+        self.gene = attributes_dict.get('gene')
+
 
         self.chromosome = anot_lst[0]
         self.source = anot_lst[1]
@@ -63,7 +75,7 @@ def make_seq_object_dict(path_to_gff3, feature_type = 'gene'):
                         temp = [key_val.split('=') for key_val in anot_lst[-1].split(';')]
                         attributes_dict = {key_val[0]:key_val[1] for key_val in temp}
                         ID = attributes_dict['ID']
-                        seq_dict[ID] = seq_attributes(line, anot_lst, attributes_dict)
+                        seq_dict[ID] = _seq_attributes(line, anot_lst, attributes_dict)
     return seq_dict   
     
     
@@ -121,7 +133,19 @@ def write_simple_annot_file(path_to_gff, filepath):
             f.write(f'{prot}\t{gene}\t{common}\t{product}\n')
             
             
-            
+# def get_gff_summary(path_to_gff):
+#     """return summary of genome assembly derived from gff
+    
+#     parameters
+#     path_to_gff (str): 
+#     """ 
+#     summmary = {}
+#     with open(path_to_gff, 'w') as f:
+#         for line in f:
+#             line.split()
+#             if line
+                     
+
 def make_simple_annot_df(path_to_gff, start_end = False):
     """generate simple dataframe from gff
 
@@ -169,5 +193,8 @@ def make_simple_annot_df(path_to_gff, start_end = False):
     return df
 
 
-        
-            
+if __name__ == '__main__':
+    gff_obj = make_seq_object_dict('/Users/jonwinkelman/Dropbox/Trestle_projects/Mukherjee_lab/ncbi_dataset/ncbi_dataset/data/GCA_000014625.1/genomic.gff')
+    print(gff_obj.keys())
+    a = gff_obj['gene-PA14_00060']
+    print(a.Note)
