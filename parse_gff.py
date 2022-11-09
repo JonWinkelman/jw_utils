@@ -133,19 +133,7 @@ def write_simple_annot_file(path_to_gff, filepath):
             f.write(f'{prot}\t{gene}\t{common}\t{product}\n')
             
             
-# def get_gff_summary(path_to_gff):
-#     """return summary of genome assembly derived from gff
-    
-#     parameters
-#     path_to_gff (str): 
-#     """ 
-#     summmary = {}
-#     with open(path_to_gff, 'w') as f:
-#         for line in f:
-#             line.split()
-#             if line
                      
-
 def make_simple_annot_df(path_to_gff, start_end = False):
     """generate simple dataframe from gff
 
@@ -193,8 +181,46 @@ def make_simple_annot_df(path_to_gff, start_end = False):
     return df
 
 
+def get_gff_summary(path_to_gff):
+    """return summary of genome assembly derived from gff
+    
+    parameters
+    path_to_gff (str):
+
+    return (dict): nested dict of dicts parsed from the 'region' line of the gff file 
+    """ 
+    pass
+    summary = {}
+    with open(path_to_gff, 'r') as f:
+        for line in f:
+            if line[0] == '#':
+                if line.startswith('#!genome-build '):
+                    summary['genome-build']=line.split(' ')[-1].strip()
+                elif line.startswith('#!genome-build-accession'):
+                    summary['accession'] = line.split(' ')[-1].strip()
+                elif line.startswith('##species '):
+                    summary['NCBI_taxon_url'] = line.split(' ')[-1].strip()
+                elif line.startswith('#!processor '):
+                    summary['processor'] = line.split(' ')[-1].strip()
+
+            else:
+                line_lst = line.split('\t')
+                if line_lst[2] == 'region':
+                    key_val_lst =line_lst[-1].split(';') #[key=val1,key=val2,key=val3,..]
+                    key_vals_dict = {key_val.split('=')[0]:key_val.split('=')[1] for key_val in key_val_lst}
+                    contig_name=line_lst[0]
+                    length = line_lst[4]
+                    summary['contigs']={contig_name:{'length':length}}
+                    for key, value in key_vals_dict.items():
+                        summary['contigs'][contig_name].update({key:value.strip()})
+    return summary
+
+
+
 if __name__ == '__main__':
-    gff_obj = make_seq_object_dict('/Users/jonwinkelman/Dropbox/Trestle_projects/Mukherjee_lab/ncbi_dataset/ncbi_dataset/data/GCA_000014625.1/genomic.gff')
-    print(gff_obj.keys())
-    a = gff_obj['gene-PA14_00060']
-    print(a.Note)
+    import argparse
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--path_to_gff', type=str, required=True)
+    args=parser.parse_args()
+    gff_obj = make_seq_object_dict(args.path_to_gff)
+    get_gff_summary(args.path_to_gff)
