@@ -237,7 +237,7 @@ def change_gff_attribute(path_to_gff, feature_val_dict, attribute, new_file_path
 
     """ 
     for key in feature_val_dict:
-        feature_val_dict = {feature_type+'-'+feature if not feature.startswith(feature_type+'-') else feature:val for feature,val in feature_val_dict.items()}
+        feature_val_dict = {feature_type.lower()+'-'+feature if not feature.startswith(feature_type.lower()+'-') else feature:val for feature,val in feature_val_dict.items()}
     with open(path_to_gff, 'r') as f:
         lines = []
         for line in f:
@@ -252,10 +252,14 @@ def change_gff_attribute(path_to_gff, feature_val_dict, attribute, new_file_path
                     #change attribute value
                     if att_dict['ID'] in feature_val_dict.keys():
                         att_dict[attribute]=feature_val_dict[att_dict['ID']]
-
-                    new_line_beg = '\t'.join(line_lst[:-1])+'\t'
-                    new_line_end = ';'.join([key+'='+val for key, val in att_dict.items()])
-                    lines.append(new_line_beg + new_line_end + '\n')
+                        new_line_beg = '\t'.join(line_lst[:-1])+'\t'
+                        new_line_end = ';'.join([key+'='+val for key, val in att_dict.items()])
+                        print(new_line_end)
+                        lines.append(new_line_beg + new_line_end + '\n')
+                    else:
+                        new_line_beg = '\t'.join(line_lst[:-1])+'\t'
+                        new_line_end = ';'.join([key+'='+val for key, val in att_dict.items()])
+                        lines.append(new_line_beg + new_line_end + '\n')
                 else:
                     lines.append(line)
         if not new_file_path:
@@ -264,10 +268,11 @@ def change_gff_attribute(path_to_gff, feature_val_dict, attribute, new_file_path
             for line in lines:
                 f.write(line)
 
+
 if __name__ == '__main__':
-    import argparse
-    parser=argparse.ArgumentParser()
-    parser.add_argument('--path_to_gff', type=str, required=True)
-    args=parser.parse_args()
-    gff_obj = make_seq_object_dict(args.path_to_gff)
-    get_gff_summary(args.path_to_gff)
+    pass
+    # parser=argparse.ArgumentParser()
+    # parser.add_argument('--path_to_gff', type=str, required=True)
+    # args=parser.parse_args()
+    # gff_obj = make_seq_object_dict(args.path_to_gff)
+    # get_gff_summary(args.path_to_gff)
