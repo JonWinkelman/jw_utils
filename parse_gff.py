@@ -217,6 +217,53 @@ def get_gff_summary(path_to_gff):
 
 
 
+def change_gff_attribute(path_to_gff, feature_val_dict, attribute, new_file_path=None, feature_type='gene'):
+    """Change value of attribute in GFF file either inplace or return new file.
+    
+    Parameters:
+    path_to_gff (str):
+    feature_val_dict (dict): {feature_ID,attribute_value}
+    attribute (str): attribute dictionary key for which the value will be changed.
+            Available keys vary in gffs. 
+            Example of an attribute dict:
+            E.g. {'ID': 'gene-PA14_73420','Name': 'rnpA','gbkey': 'Gene','gene': 'rnpA',
+                    'gene_biotype': 'protein_coding','locus_tag': 'PA14_73420'}
+
+            
+
+    in_place (bool): if True, edits and saves changes to the input gff. If False, saves a copy
+    new_file_path (str): if in_place=False, saves copy of edited GFF here
+    feature_type (str): feature type fo which to change attribute value
+
+    """ 
+    for key in feature_val_dict:
+        feature_val_dict = {feature_type+'-'+feature if not feature.startswith(feature_type+'-') else feature:val for feature,val in feature_val_dict.items()}
+    with open(path_to_gff, 'r') as f:
+        lines = []
+        for line in f:
+            if line[0]=='#':
+                lines.append(line)
+            else:
+                line_lst = line.split('\t')
+                if line_lst[2]==feature_type:
+                    attribute_list = line_lst[-1].split(';')
+                    att_dict = {ele.split('=')[0]:ele.split('=')[1].strip() for ele in attribute_list}
+                    att_dict = {ele.split('=')[0]:ele.split('=')[1].strip() for ele in attribute_list}
+                    #change attribute value
+                    if att_dict['ID'] in feature_val_dict.keys():
+                        att_dict[attribute]=feature_val_dict[att_dict['ID']]
+
+                    new_line_beg = '\t'.join(line_lst[:-1])+'\t'
+                    new_line_end = ';'.join([key+'='+val for key, val in att_dict.items()])
+                    lines.append(new_line_beg + new_line_end + '\n')
+                else:
+                    lines.append(line)
+        if not new_file_path:
+            new_file_path = path_to_gff.replace('.gff', '_edit.gff') 
+        with open(new_file_path, 'w') as f:
+            for line in lines:
+                f.write(line)
+
 if __name__ == '__main__':
     import argparse
     parser=argparse.ArgumentParser()
