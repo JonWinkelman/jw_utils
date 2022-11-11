@@ -46,7 +46,15 @@ class _seq_attributes:
         
         
 
-def make_seq_object_dict(path_to_gff3, feature_type = 'gene'):               
+def _make_attribut_dict(gff_line):
+    """return a dict of attributes parsed from a NCBI-formatted gff3 line"""
+    attr_list = gff_line.split('\t')[-1].split(';') #list of ['key=val','key=val','key2=val2',...]
+    temp = [key_val.split('=') for key_val in attr_list]
+    return {key_val[0]:key_val[1] for key_val in temp}
+
+
+
+def make_seq_object_dict(path_to_gff, feature_type = 'gene'):               
     """
     Parse GFF and make dict containing feature objects.
     
@@ -61,24 +69,34 @@ def make_seq_object_dict(path_to_gff3, feature_type = 'gene'):
     various attributes such as start and end position in the genome, product description,
     what strand of DNA feature is encoded on, parent gene name, 
     """
-    with open(path_to_gff3, 'r') as f:
-        seq_dict = {}     
-        for i,line in enumerate(f):
-            #if i>6: break
-            if line[0] != '#' and line[0] != ' ':
-                anot_lst = line.split('\t')
-                if len(anot_lst) <6:
-                    raise Exception(f'line {i+1} in {path_to_gff3} does not contain all annotation fields')
-                #get only protein homology lines
-                if anot_lst[2] == feature_type: #make this a passed variable
-                    if anot_lst[-1].find('ID=') !=-1:
-                        temp = [key_val.split('=') for key_val in anot_lst[-1].split(';')]
-                        attributes_dict = {key_val[0]:key_val[1] for key_val in temp}
-                        ID = attributes_dict['ID']
-                        seq_dict[ID] = _seq_attributes(line, anot_lst, attributes_dict)
-    return seq_dict   
-    
-    
+    seq_dict = {}
+    with open(path_to_gff, 'r') as f:
+        for gff_line in f:
+            anot_lst = _get_line_list(gff_line, feature_type)
+            if anot_lst:
+                attributes_dict = _make_attribut_dict(gff_line)
+                seq_dict[attributes_dict['ID']] = _seq_attributes(gff_line, anot_lst, attributes_dict)
+    return seq_dict
+
+
+
+def _get_line_list(gff_line, feature_type):
+    """parse gff line and return a list of annotations if line is annot for feature type"""
+
+    if gff_line[0] == '#' or gff_line[0] == ' ':
+        return None
+
+    anot_lst = gff_line.split('\t')
+    if len(anot_lst) <6:
+        raise Exception(f'line {gff_line} in gff does not contain standard annotation format')
+    if anot_lst[2] != feature_type:
+        return None
+    if anot_lst[-1].find('ID=') == -1:
+        return None
+    return anot_lst
+        
+        
+        
 def make_gene2prot_dict(path_to_gff3):               
     """
     Return a dictionary {geneID:proteinID}
@@ -94,6 +112,7 @@ def make_gene2prot_dict(path_to_gff3):
     return {seq_dict[protein].Parent:protein for protein in seq_dict.keys()}
    
 
+
 def make_prot2gene_dict(path_to_gff3):
     """
     Return a dictionary {proteinID:geneID}
@@ -107,6 +126,7 @@ def make_prot2gene_dict(path_to_gff3):
     """
     seq_dict = make_seq_object_dict(path_to_gff3, feature_type = 'CDS')
     return {protein:seq_dict[protein].Parent for protein in seq_dict.keys()}
+
 
 
 def write_simple_annot_file(path_to_gff, filepath):
@@ -181,6 +201,7 @@ def make_simple_annot_df(path_to_gff, start_end = False):
     return df
 
 
+
 def get_gff_summary(path_to_gff):
     """return summary of genome assembly derived from gff
     
@@ -189,7 +210,7 @@ def get_gff_summary(path_to_gff):
 
     return (dict): nested dict of dicts parsed from the 'region' line of the gff file 
     """ 
-    pass
+
     summary = {}
     with open(path_to_gff, 'r') as f:
         for line in f:
