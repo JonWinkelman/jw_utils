@@ -241,6 +241,10 @@ def get_gff_summary(path_to_gff):
 def change_gff_attribute(path_to_gff, feature_val_dict, attribute, new_file_path=None, feature_type='gene'):
     """Change value of attribute in GFF file either inplace or return new file.
     
+    **make sure key (feature ID) in feature_val_dict matches  is in the correct format. 
+    e.g. if the feature_type == 'gene', then the  key should be a gene ID. if the 
+    feature type =='CDS', then the key should be a protein ID. 
+    
     Parameters:
     path_to_gff (str):
     feature_val_dict (dict): {feature_ID,attribute_value}
