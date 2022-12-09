@@ -79,6 +79,24 @@ def make_seq_object_dict(path_to_gff, feature_type = 'gene'):
     return seq_dict
 
 
+def get_geneObjects_on_strand(path_to_gff, strand):
+    """return dict {ID:object} of all gene objects that exist on given strand
+    
+    strand (str): '+' or '-'
+    """
+
+    seq_obj_dict = make_seq_object_dict(path_to_gff)
+    return {obj.ID:obj for obj in seq_obj_dict.values() if obj.strand==strand}
+
+
+
+def get_contig_names(gff_path):
+    "return set of contigs present in the gff file"
+    with open(gff_path, 'r') as f:
+        contigs =  [line.split('\t')[0] for line in f if line[0] != '#']
+        return set(contigs)
+
+
 
 def _get_line_list(gff_line, feature_type):
     """parse gff line and return a list of annotations if line is annot for feature type"""
@@ -154,7 +172,7 @@ def write_simple_annot_file(path_to_gff, filepath):
             
             
                      
-def make_simple_annot_df(path_to_gff, start_end = False):
+def make_simple_annot_df(path_to_gff, start_end=False, contig=False):
     """generate simple dataframe from gff
 
     index: gene_ID
@@ -163,10 +181,12 @@ def make_simple_annot_df(path_to_gff, start_end = False):
     parameters:
     path_to_gff (str): path to the gff file
     start_end (bool): include start and end of gene as individual columns
+    contig (bool): if True, add contig names to df
     
     """
     jb_bug = make_seq_object_dict(path_to_gff, feature_type='CDS')
     jb_bug_gene = make_seq_object_dict(path_to_gff, feature_type='gene')
+    contig_name = []
     genes = []
     proteins = []
     common_name = []
@@ -184,6 +204,8 @@ def make_simple_annot_df(path_to_gff, start_end = False):
             strand.append(jb_bug[prot].strand)
         if jb_bug_gene.get(gene):
             common_name.append(jb_bug_gene[gene].Name)
+        if contig:
+            contig_name.append(jb_bug[prot].chromosome)
         else: 
             common_name.append('')
         product.append(jb_bug[prot].product)
@@ -196,9 +218,10 @@ def make_simple_annot_df(path_to_gff, start_end = False):
         df['start'] = starts
         df['end'] = end
         df['strand'] = strand
+    if contig:
+        df['contig_name'] = contig_name
         
-    df = df.set_index('gene_ID')
-    return df
+    return df.set_index('gene_ID')
 
 
 
