@@ -209,7 +209,7 @@ def make_simple_annot_df(path_to_gff, start_end=False, contig=False):
         if contig:
             contig_name.append(jb_bug[prot].chromosome)
 
-        product.append(jb_bug[prot].product)
+        product.append(jb_bug[prot].product.strip())
     df = pd.DataFrame()
     df['gene_ID'] = genes
     df['protein_ID'] = proteins
