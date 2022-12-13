@@ -33,6 +33,10 @@ class _seq_attributes:
         self.gene_biotype = attributes_dict.get('gene_biotype')
         self.Note = attributes_dict.get('Note')
         self.gene = attributes_dict.get('gene')
+        self.transcript_id = attributes_dict.get('transcript_id')
+        self.coverage = attributes_dict.get('cov')
+        self.FPKM = attributes_dict.get('FPKM')
+        self.TPM = attributes_dict.get('TPM')
 
 
         self.chromosome = anot_lst[0]
@@ -227,7 +231,7 @@ def make_simple_annot_df(path_to_gff, start_end=False, contig=False):
 
 
 def get_gff_summary(path_to_gff):
-    """return summary of genome assembly derived from gff
+    """NEEDS WORK!!!! return summary of genome assembly derived from gff
     
     parameters
     path_to_gff (str):
