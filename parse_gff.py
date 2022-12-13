@@ -204,10 +204,11 @@ def make_simple_annot_df(path_to_gff, start_end=False, contig=False):
             strand.append(jb_bug[prot].strand)
         if jb_bug_gene.get(gene):
             common_name.append(jb_bug_gene[gene].Name)
-        if contig:
-            contig_name.append(jb_bug[prot].chromosome)
         else: 
             common_name.append('')
+        if contig:
+            contig_name.append(jb_bug[prot].chromosome)
+
         product.append(jb_bug[prot].product)
     df = pd.DataFrame()
     df['gene_ID'] = genes
