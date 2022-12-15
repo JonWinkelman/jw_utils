@@ -57,6 +57,10 @@ def _make_attribut_dict(gff_line):
     return {key_val[0]:key_val[1] for key_val in temp}
 
 
+def make_full_seq_object_dict():
+    pass
+
+
 
 def make_seq_object_dict(path_to_gff, feature_type = 'gene'):               
     """
@@ -111,6 +115,8 @@ def _get_line_list(gff_line, feature_type):
     anot_lst = gff_line.split('\t')
     if len(anot_lst) <6:
         raise Exception(f'line {gff_line} in gff does not contain standard annotation format')
+    if feature_type=='all':
+        return anot_lst
     if anot_lst[2] != feature_type:
         return None
     if anot_lst[-1].find('ID=') == -1:

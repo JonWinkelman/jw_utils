@@ -102,11 +102,29 @@ def rev_comp(seq):
     rev_comp_seq = ''
     for base in seq:
         rev_comp_seq = base_pair_dict[base] + rev_comp_seq
-    return rev_comp_seq 
+    return rev_comp_seq
 
 
-def get_gene_seq(path_to_fasta_genome):
+
+def get_feature_seq(path_to_fasta_genome, path_to_annot_file,feature_ID):   
+       
+    
     fasta_dict = pf.get_seq_dict(path_to_fasta_genome) 
+
+
+# def get_feature_dna_seq(path_to_fasta_genome,  path_to_annot_file, feature_ID, feature_type='gene'):
+#     """returns the coding strand of the feature"""
+#     gff_geneObject_dict = pgf.make
+#     polarity = self.gff_geneObject_dict[gene].strand
+#     gene_start = self.gff_geneObject_dict[gene].start
+#     gene_end = self.gff_geneObject_dict[gene].end
+#     gene_seq = self.genome_seq_dict[self.chromosome_names[0]][(gene_start-1):gene_end]
+#     if polarity == '-':
+#         start_codon = gene_end
+#         stop_codon = gene_start
+#         gene_seq = rev_comp(gene_seq)
+#     return gene_seq
+
     
     
 class GenomeUtils:
@@ -129,6 +147,7 @@ class GenomeUtils:
         
         
     def get_gene_dna_seq(self, gene):
+        """returns the coding strand of the feature"""
         polarity = self.gff_geneObject_dict[gene].strand
         gene_start = self.gff_geneObject_dict[gene].start
         gene_end = self.gff_geneObject_dict[gene].end
@@ -138,6 +157,24 @@ class GenomeUtils:
             stop_codon = gene_start
             gene_seq = rev_comp(gene_seq)
         return gene_seq
+
+    def get_feature_dna_seq(self, feature_id, feature_type, contig):
+        """Return the sequence of any given feature type within the annotation file"""
+        
+        feat_obj_dict = pgf.make_seq_object_dict(
+                                            self.path_to_gff, 
+                                            feature_type=feature_type
+                                            )   
+        polarity = feat_obj_dict[feature_id].strand
+        feature_start = feat_obj_dict[feature_id].start
+        feature_end = feat_obj_dict[feature_id].end
+        feature_seq = self.genome_seq_dict[contig][(feature_start-1):feature_end]
+        if polarity == '-':
+            start_codon = feature_end
+            stop_codon = feature_start
+            feature_seq = rev_comp(feature_seq)
+        return feature_seq
+
 
     
 
