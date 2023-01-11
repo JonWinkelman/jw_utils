@@ -93,9 +93,8 @@ def read_treefile(filename):
     return tree
 
 
-
 def create_plotly_tree(tree, title=None, t_nodes_color_dict=None, in_node_size=2, t_node_size=10,
-                            in_node_color='rgb(100,100,100)'):
+                            in_node_color='rgb(100,100,100)', height=550):
     """make plotly figure from newick tree
 
     parameters:
@@ -107,7 +106,7 @@ def create_plotly_tree(tree, title=None, t_nodes_color_dict=None, in_node_size=2
 
     return (Plotly.graph_objects.Figure)
     """
-    if type(tree) != Phylo.Newick.Tree:
+    if type(tree) == str:
         tree = Phylo.read(tree, "newick")
     x_coords = get_x_coordinates(tree)
     y_coords = get_y_coordinates(tree)
@@ -123,7 +122,6 @@ def create_plotly_tree(tree, title=None, t_nodes_color_dict=None, in_node_size=2
     t_node_names = [clade.name for clade in tree.get_terminals()]
     loops=0
     if type(t_nodes_color_dict)!= dict:
-        print('this was triggered')
         t_nodes_color_dict={}
         t_nodes_color_dict['rgb(100,100,100)'] = t_node_names
     
@@ -180,7 +178,7 @@ def create_plotly_tree(tree, title=None, t_nodes_color_dict=None, in_node_size=2
                   dragmode="lasso",
                   font=dict(family='Balto', size=14),
                   #width=750,
-                  height=550,
+                  height=height,
                   autosize=True,
                   showlegend=False,
                   xaxis=dict(showline=False,
@@ -198,82 +196,7 @@ def create_plotly_tree(tree, title=None, t_nodes_color_dict=None, in_node_size=2
                   )
     fig = dict(data=[data], layout=layout)
     return fig
-
-
-def create_special_tree(tree_filepath, ingroup, outgroup, HOG, copies, title=None):
-    missing_dict = a.genomes_missing_HOGs(ingroup, outgroup, HOG, copies)
-    tree = read_treefile(tree_filepath)
-    x_coords = get_x_coordinates(tree)
-    y_coords = get_y_coordinates(tree)
-    line_shapes = []
-    draw_clade(tree.root, 0, line_shapes, line_color='rgb(25,25,25)', line_width=1, x_coords=x_coords,
-               y_coords=y_coords)
-    my_tree_clades = x_coords.keys()
-    X = []
-    Y = []
-    text = []
-    node_sizes = []
-    color_dict = {}
-    for cl in my_tree_clades:
-        X.append(x_coords[cl])
-        Y.append(y_coords[cl])
-        if cl.name in name_dict.keys():
-            text.append(name_dict[cl.name])
-        else:
-            text.append(cl.name)
-            
-        if cl.name in ingroup:
-            color_dict[cl.name] = colors['t_green']  #seagreen trestle
-            node_sizes.append(10)
-        elif cl.name in outgroup:
-            color_dict[cl.name] = colors['t_blue']
-            node_sizes.append(10)
-        else:
-            color_dict[cl.name] = '#92A0A9' #grey'
-            node_sizes.append(5)
-        if cl.name in missing_dict['ingroup']:
-           color_dict[cl.name] = 'rgba(150,255,150,0.65)'
-        if cl.name in missing_dict['outgroup']:
-           color_dict[cl.name] = 'rgba(0,130,255,0.4)'
-
-    axis = dict(showline=False,
-                zeroline=False,
-                showgrid=False,
-                showticklabels=False,
-                title=''  # y title
-                )
-
-    data = dict(type='scatter',
-                x=X,
-                y=Y,
-                mode='markers',
-                marker=dict(color=list(color_dict.values()),
-                            size=node_sizes),
-                text=text,  # vignet information of each node
-                hoverinfo='text',
-                )
-    if title:
-        title=title
-    layout = dict(title=title,
-                  paper_bgcolor='rgb(248,248,248)',
-                  dragmode="lasso",
-                  font=dict(family='Balto', size=14),
-                  #width=750,
-                  height=550,
-                  autosize=True,
-                  showlegend=False,
-                  xaxis=dict(showline=False,
-                             zeroline=False,
-                             showgrid=False,  # To visualize the vertical lines
-                             ticklen=4,
-                             showticklabels=False,
-                             title=''),
-                  yaxis=axis,
-                  hovermode='closest',
-                  shapes=line_shapes,
-                  plot_bgcolor='rgb(248,248,248)',
-                  legend={'x': 0, 'y': 1},
-                  margin={'b': 0, 'l': 0, 'r': 0, 't': 0}
-                  )
-    fig = dict(data=[data], layout=layout)
-    return fig 
+    
+    
+    
+    
