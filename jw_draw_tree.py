@@ -1,4 +1,6 @@
 from Bio import Phylo
+from plotly import graph_objects as go
+import pandas as pd
 
 def get_x_coordinates(tree):
     """Associates to  each clade an x-coord.
@@ -93,8 +95,253 @@ def read_treefile(filename):
     return tree
 
 
+
+
+
+def create_tree_w_bargraphs(tree_obj, data_dict, colors=None, intern_node_label=None, node_color_dict=None,
+                                in_node_size=2, t_node_size=10):
+    """Create a phylogenetic plotly tree figure with 1 or more bargraphs
+    
+    Parameters:
+    tree_obj (Bio.Phylo newick tree object):
+
+    colors (dict): Colors for the bars in each bargraph. Format = {'t_blue': 'rgba(0,102,153,255)', ...}
+    intern_node_label (str): These are the clade attribute that will be assigned to the internal node hoverdata,
+                            options are: 'name', 'confidence', 'branch_length'. If None, an empty string is assigned
+                            to each internal node.
+    data_dict (nested dict): {title:{leaf_name:int}} Can put multiple bargraphs onto tree
+    """
+    if not colors:
+        colors = {
+        't_blue': 'rgba(0,102,153,255)',
+        't_green': 'rgba(61,174,43,255)',
+        't_red': 'rgb(255,20,20)',
+        'seagreen':'#2c8d42',
+        'orange':'#F9B257',
+        'purple':'rgba(52, 30, 170, 0.25)',
+        'lavender':'rgba(170, 30, 125, 0.25)',
+        'greyish': 'rgba(80, 80, 69, 0.25)'}
+    
+    fig=create_tree(tree_obj, intern_node_label=intern_node_label, node_color_dict=node_color_dict,
+                     in_node_size=in_node_size, t_node_size=t_node_size)
+    fig_sp_tree = go.Figure(fig)
+    shift = 0.01
+    bar_thickness = 0.95
+    scale = 0.02
+    new_max_x = max(fig_sp_tree['data'][0]['x']) #initialize max_x
+    for i, graph in enumerate(data_dict):
+        l_colors = list(colors.values())
+        color = l_colors[i]
+        fig_sp_tree_added_traces, new_max_x = _add_bargraph_trace(fig_sp_tree,
+                                                    bar_thickness, shift, scale, 
+                                                    new_max_x, tree_obj, color, data_dict[graph],
+                                                    bargraph_title = graph)
+    return fig_sp_tree_added_traces
+
+
+
+def _add_bargraph_trace(fig_sp_tree, bar_thickness, shift, 
+                      scale, max_x, tree_obj, color, data_dict,
+                      bargraph_title = None):
+    """Add plotly bar graph trace to the input tree figure"""
+    HOG = 'N1.HOG0001809'
+    x_y_coords = get_bar_coords_dict(tree_obj, data_dict)
+    new_max_x = max_x
+    for acc, x_y in x_y_coords.items():
+        copies = int(x_y[0])
+        text = f'{acc}<br>{bargraph_title} copies: {copies}'
+        bar_trace = get_bar_traces(max_x, copies, x_y[1], bar_thickness = bar_thickness, 
+                                   shift=shift, scale=scale, text=text, 
+                                   color=color)
+        fig_sp_tree.add_trace(bar_trace)
+        #find new max_x v_val
+        if max(bar_trace['x']) > new_max_x:
+            print(f'{max(bar_trace.x)} {max_x}')
+            new_max_x = max(bar_trace['x'])
+    fig_sp_tree.add_trace(make_baseline_trace(shift, x_y_coords, max_x, bar_thickness, title=bargraph_title))
+    return fig_sp_tree, new_max_x
+
+
+def get_bar_coords_dict(sp_tree, data_dict):
+    """
+    Parameters:
+    data_dict (dict): {leaf_name:counts}
+    """
+    #sp_tree = read_treefile(path_to_species_tree)
+    ycoords = get_y_coordinates(sp_tree)
+    leaf_names  = [cl.name for cl in sp_tree.get_terminals()]
+    ycoords_terminal = {clade.name:y_value for clade, y_value in ycoords.items() if clade.name in leaf_names}
+    x_y_coords = {acc:[] for acc in data_dict.keys()}
+    for acc, val in ycoords_terminal.items():
+        x_y_coords[acc].append(data_dict[acc])
+        x_y_coords[acc].append(val)
+    return x_y_coords
+
+
+def get_bar_traces(x_start, x_val, y_val, bar_thickness, shift=0,
+                   scale=1, text='', color='rgba(100,100,100,0.5)'):
+    """return a shape dict for a bar for a horizontal bargraph
+    
+    parameters:
+    x_start (int): left_most x_coordinate of graph
+    x (int or float): lenght of the bar
+    y (int or float): y position on bargraph
+    bar_thickness (float): thickness of a bar
+    shift (float): shifts the left_hand side of graph 
+    
+    return (trace): trace containing one bar
+    """
+    x_left = x_start+shift
+    x_right = x_left+(x_val*scale)
+    y_low = y_val-(0.5*bar_thickness)
+    y_high = y_val+(0.5*bar_thickness)
+    x = [x_left, x_right, x_right, x_left, x_left]
+    y = [y_low,  y_low,   y_high,  y_high, y_low]
+    
+    trace = go.Scatter(
+        x = x,
+        y = y,
+        mode='lines',
+        fill='toself',
+        line={'color':color,
+             'width':0.01},
+        text = text,
+        showlegend=False)
+    return trace
+
+def make_baseline_trace(shift, x_y_coords, max_x, bar_thickness, title=''):
+    x_start = max_x + shift
+    xy_coords_df = pd.DataFrame(x_y_coords).transpose()
+    xy_coords_df.columns = [title+'_x',title+'_y' ]
+    max_y = xy_coords_df[title+'_y'].max() + 0.5*bar_thickness
+    min_y = xy_coords_df[title+'_y'].min() - 0.5*bar_thickness
+    baseline_trace = go.Scatter(x=[x_start, x_start],
+                                y=[min_y, max_y],
+                                mode='lines',
+                                line={'color':'rgba(100,100,100,0.5)',
+                                     'width': 1})
+    return baseline_trace
+
+
+
+#############base tree functions###########################################################################################
+def create_tree(tree, title=None, intern_node_label=None,  node_color_dict=None, in_node_size=2, t_node_size=10):
+    """Return a plotly tree
+    Parameters:
+    tree: Bio.Phylo newick tree object
+    title (str): title to appear on graph 
+    intern_node_label (str): clade attribute from which to name the internal nodes. 
+                            options: None, 'confidence', 'name', 'branch_length'
+    node_color_dict (dict): define color for nodes on tree: {node_name:rgb()}. If
+                            node name is not in dict it will be given default color
+    """
+
+    x_coords = get_x_coordinates(tree)
+    y_coords = get_y_coordinates(tree)
+    line_shapes = []
+    draw_clade(tree.root, 0, line_shapes, line_color='rgb(25,25,25)', line_width=1, x_coords=x_coords,
+               y_coords=y_coords)
+            
+    my_tree_clades = x_coords.keys() #returns all clades in tree, {clade:dist from root to clade}
+
+    X = []
+    Y = []
+    text = []
+    node_sizes = []
+    
+    #hoverdata for ALL nodes
+    for cl in my_tree_clades:
+        X.append(x_coords[cl])
+        Y.append(y_coords[cl])
+        if cl in tree.get_terminals():
+            if cl.name:
+                text.append(cl.name)
+            node_sizes.append(t_node_size)
+        else:
+            if intern_node_label == 'confidence':
+                text.append(cl.confidence)
+            elif intern_node_label == 'name':   
+                text.append(cl.name)
+            elif intern_node_label == 'branch_length':
+                text.append(cl.branch_length)
+            else:
+                text.append('') 
+            node_sizes.append(in_node_size)
+    
+    #make color dict:
+    if node_color_dict:
+        node_colors = make_tree_node_colorlist(my_tree_clades, node_color_dict)
+    else:
+        node_colors = []
+    data = dict(type='scatter',
+                x=X,
+                y=Y,
+                mode='markers',
+                textposition='middle right',
+                marker=dict(color=node_colors,
+                            size=node_sizes),
+                text=text,  # vignet information of each node
+                hoverinfo='text',
+                )
+    layout = get_tree_layout(line_shapes=line_shapes)
+    fig = dict(data=[data], layout=layout)
+    return fig
+
+
+def make_tree_node_colorlist(my_tree_clades, node_color_dict):
+    node_colors = [] 
+    for cl in my_tree_clades:
+        color = node_color_dict.get(cl.name)
+        if color:
+            node_colors.append(color)
+        else: 
+            node_colors.append('rgb(25,25,25)')
+    return node_colors
+
+
+
+def get_tree_layout(title=None, paper_bgcolor ='rgb(248,248,248)', height=850, line_shapes=None,
+                    plot_bgcolor='rgb(248,248,248)'):
+    axis = dict(showline=False,
+            zeroline=False,
+            showgrid=False,
+            showticklabels=False,
+            title=''  # y title
+            )
+    layout = dict(title=title,
+                paper_bgcolor=paper_bgcolor,
+                dragmode="lasso",
+                font=dict(family='Balto', size=14),
+                #width=750,
+                height=height,
+                autosize=True,
+                showlegend=False,
+                xaxis=dict(showline=False,
+                            zeroline=False,
+                            showgrid=False,  # To visualize the vertical lines
+                            ticklen=4,
+                            showticklabels=False,
+                            title=''),
+                yaxis=axis,
+                hovermode='closest',
+                shapes=line_shapes,
+                plot_bgcolor=plot_bgcolor,
+                legend={'x': 0, 'y': 1},
+                margin={'b': 0, 'l': 0, 'r': 0, 't': 0}
+                )
+    return layout
+
+
+
+
+
+
+
+
+
+##################deprecated##############################################
 def create_plotly_tree(tree, title=None, t_nodes_color_dict=None, in_node_size=2, t_node_size=10,
-                            in_node_color='rgb(100,100,100)', height=550):
+                            in_node_color='rgb(100,100,100)'):
     """make plotly figure from newick tree
 
     parameters:
@@ -106,7 +353,7 @@ def create_plotly_tree(tree, title=None, t_nodes_color_dict=None, in_node_size=2
 
     return (Plotly.graph_objects.Figure)
     """
-    if type(tree) == str:
+    if type(tree) != Phylo.Newick.Tree:
         tree = Phylo.read(tree, "newick")
     x_coords = get_x_coordinates(tree)
     y_coords = get_y_coordinates(tree)
@@ -122,6 +369,7 @@ def create_plotly_tree(tree, title=None, t_nodes_color_dict=None, in_node_size=2
     t_node_names = [clade.name for clade in tree.get_terminals()]
     loops=0
     if type(t_nodes_color_dict)!= dict:
+        print('this was triggered')
         t_nodes_color_dict={}
         t_nodes_color_dict['rgb(100,100,100)'] = t_node_names
     
@@ -178,7 +426,7 @@ def create_plotly_tree(tree, title=None, t_nodes_color_dict=None, in_node_size=2
                   dragmode="lasso",
                   font=dict(family='Balto', size=14),
                   #width=750,
-                  height=height,
+                  height=550,
                   autosize=True,
                   showlegend=False,
                   xaxis=dict(showline=False,
@@ -196,7 +444,7 @@ def create_plotly_tree(tree, title=None, t_nodes_color_dict=None, in_node_size=2
                   )
     fig = dict(data=[data], layout=layout)
     return fig
-    
-    
-    
-    
+
+
+
+
