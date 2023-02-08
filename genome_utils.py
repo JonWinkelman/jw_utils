@@ -182,10 +182,11 @@ class GenomeUtils:
                             gene_list=None, feature_type='gene', prefix_format=True):
         """Return the desired length of DNA sequence before the start codon.
 
+        **Sequence returned is on the same strand and orientaion as the mRNA
+
         Parameters:
-        length (int): length of sequence to return before start codon.
-        path_to_fasta_genome (str): if fasta genome contains >1 contig, the first contig will be used.
-        path_to_gff (str): path to gff3 file.
+        length_before_start (int): length of sequence to return before start codon.
+        length_after_start (int): length of sequence to return after start codon.
         gene_list=None (list): list of genes. Preferably with the prefix 'gene-' or 'cds-' on front, else
                                 funtion will add this prefix. 
         feature_type (str): can be 'gene', 'CDS',.
@@ -196,7 +197,11 @@ class GenomeUtils:
         sequence as the value
         
         """
-            
+        
+        avail_feature_types = ['CDS', 'gene']
+        if feature_type not in avail_feature_types:
+            raise TypeError(f'feature_type {feature_type} not in available feature types.\n Try one of the following: {avail_feature_types}') 
+ 
         contigs = list(self.genome_seq_dict.keys())
         genome_seq = self.genome_seq_dict[contigs[0]]
         if len(contigs) > 1: 
@@ -230,9 +235,9 @@ class GenomeUtils:
                         upstream_regions[gene] = rev_comp(region)
                     else:
                         upstream_regions[gene.replace(prefix, '')] = rev_comp(region)
-                else:
-                    region_beginning = gff_obj_dict[gene].start-length_before_start
-                    region_end = gff_obj_dict[gene].start + length_after_start
+                elif gff_obj_dict[gene].strand == '+':
+                    region_beginning = (gff_obj_dict[gene].start-length_before_start) - 1
+                    region_end = (gff_obj_dict[gene].start + length_after_start) - 1
                     region = genome_seq[region_beginning:region_end]
                     if prefix_format:
                         upstream_regions[gene] = region
@@ -246,7 +251,80 @@ class GenomeUtils:
         
         
 
+    def get_downstream_sequence(self, length_before_stop,length_after_stop=0,
+                            gene_list=None, feature_type='gene', prefix_format=True):
+        """Return the desired length of DNA sequence after the stop codon.
+
+        **Sequence returned is on the same strand and orientaion as the mRNA
+
+        Parameters:
+        length_before_stop (int): length of sequence to return before the end of the stop codon,
+                                  e.g. if 0, then sequence starts on first nt after stop codon.
+        length_after_stop (int): length of sequence to return downstream of the coding sequence.
+        gene_list=None (list): list of genes. Preferably with the prefix 'gene-' or 'cds-' on front, else
+                                funtion will add this prefix. 
+        feature_type (str): can be 'gene', 'CDS',.
+        prefix_format (bool): if True, return dictionary keys with 'gene-' or 'cds-' as prefix.
+
+        Return (dict):
+        dictionary with gene protein ID ('gene-...' or 'cds-...) as the key and the upstream
+        sequence as the value
         
+        """
+        avail_feature_types = ['CDS', 'gene']
+        if feature_type not in avail_feature_types:
+            raise TypeError(f'feature_type {feature_type} not in available feature types.\n Try one of the following: {avail_feature_types}') 
+            
+        contigs = list(self.genome_seq_dict.keys())
+        genome_seq = self.genome_seq_dict[contigs[0]]
+        if len(contigs) > 1: 
+            print(f'There are multiple contigs in the fasta: {self.path_to_fasta_genome}, \n attempting to use {contigs[0]}' )
+        if feature_type=='CDS': 
+            prefix = 'cds-'
+            gff_obj_dict = self.gff_cdsObject_dict
+        else:
+            prefix = 'gene-'
+            gff_obj_dict = self.gff_geneObject_dict
+        if type(gene_list) != list:
+            gene_list=list(gff_obj_dict.keys())
+        else:
+            #check for "gene-" or "CDS-" on front of feature ID
+            for i, gene in enumerate(gene_list):
+                gene = str(gene)
+                if not gene.startswith(prefix):
+                    gene = prefix + gene
+                    gene_list[i] = gene
+
+        # strand= [gff_obj_dict[gene].strand if gff_obj_dict.get(gene) else None for gene in gene_list]
+        upstream_regions = {}
+        i=0
+        for gene in gene_list:
+            if gff_obj_dict.get(gene):
+                if gff_obj_dict[gene].strand == '-':
+                    region_end  = (gff_obj_dict[gene].start + length_before_stop)-1
+                    region_beginning = (gff_obj_dict[gene].start - length_after_stop)-1
+                    region = genome_seq[region_beginning:region_end]
+                    if prefix_format:
+                        upstream_regions[gene] = rev_comp(region)
+                    else:
+                        upstream_regions[gene.replace(prefix, '')] = rev_comp(region)
+                elif gff_obj_dict[gene].strand == '+':
+                    region_beginning = gff_obj_dict[gene].end-length_before_stop
+                    region_end = gff_obj_dict[gene].end + length_after_stop
+                    region = genome_seq[region_beginning:region_end]
+                    if prefix_format:
+                        upstream_regions[gene] = region
+                    else:
+                        upstream_regions[gene.replace(prefix, '')] = region
+            else:
+                upstream_regions[gene] = None
+
+        return upstream_regions    
+
+    
+    
+    
+    
 class ProteomeUtils:
     def __init__(self, path_to_proteome, path_to_gff):  
         self.path_to_proteome = path_to_proteome
