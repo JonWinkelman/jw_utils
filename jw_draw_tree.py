@@ -99,7 +99,7 @@ def read_treefile(filename):
 
 
 def create_tree_w_bargraphs(tree_obj, data_dict, colors=None, intern_node_label=None, node_color_dict=None,
-                                in_node_size=2, t_node_size=10):
+                                in_node_size=2, t_node_size=10, labels=None, label_mode='markers', height=850):
     """Create a phylogenetic plotly tree figure with 1 or more bargraphs
     
     Parameters:
@@ -110,6 +110,7 @@ def create_tree_w_bargraphs(tree_obj, data_dict, colors=None, intern_node_label=
                             options are: 'name', 'confidence', 'branch_length'. If None, an empty string is assigned
                             to each internal node.
     data_dict (nested dict): {title:{leaf_name:int}} Can put multiple bargraphs onto tree
+    label_mode (str): options 'markers', 'markers+text'. 'markers' - only show text on hover, 'markers+text' - show text always
     """
     if not colors:
         colors = {
@@ -123,7 +124,7 @@ def create_tree_w_bargraphs(tree_obj, data_dict, colors=None, intern_node_label=
         'greyish': 'rgba(80, 80, 69, 0.25)'}
     
     fig=create_tree(tree_obj, intern_node_label=intern_node_label, node_color_dict=node_color_dict,
-                     in_node_size=in_node_size, t_node_size=t_node_size)
+                     in_node_size=in_node_size, t_node_size=t_node_size, label_mode=label_mode,height=height)
     fig_sp_tree = go.Figure(fig)
     shift = 0.01
     bar_thickness = 0.95
@@ -225,7 +226,8 @@ def make_baseline_trace(shift, x_y_coords, max_x, bar_thickness, title=''):
 
 
 #############base tree functions###########################################################################################
-def create_tree(tree, title=None, intern_node_label=None,  node_color_dict=None, in_node_size=2, t_node_size=10):
+def create_tree(tree, title=None, intern_node_label=None,  node_color_dict=None, in_node_size=2, t_node_size=10,
+                 label_mode='markers', height=850):
     """Return a plotly tree
     Parameters:
     tree: Bio.Phylo newick tree object
@@ -234,6 +236,7 @@ def create_tree(tree, title=None, intern_node_label=None,  node_color_dict=None,
                             options: None, 'confidence', 'name', 'branch_length'
     node_color_dict (dict): define color for nodes on tree: {node_name:rgb()}. If
                             node name is not in dict it will be given default color
+    label_mode (str): options 'markers', 'markers+text'. 'markers' - only show text on hover, 'markers+text' - show text always
     """
 
     x_coords = get_x_coordinates(tree)
@@ -276,14 +279,14 @@ def create_tree(tree, title=None, intern_node_label=None,  node_color_dict=None,
     data = dict(type='scatter',
                 x=X,
                 y=Y,
-                mode='markers',
+                mode=label_mode,#'markers',
                 textposition='middle right',
                 marker=dict(color=node_colors,
                             size=node_sizes),
                 text=text,  # vignet information of each node
                 hoverinfo='text',
                 )
-    layout = get_tree_layout(line_shapes=line_shapes)
+    layout = get_tree_layout(line_shapes=line_shapes,height=height)
     fig = dict(data=[data], layout=layout)
     return fig
 
