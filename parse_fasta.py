@@ -6,7 +6,6 @@ Created on Fri Jun 24 14:08:25 2022
 @author: jonwinkelman
 
 """
-path_to_fasta = '/Users/jonwinkelman/my_dash_app/data/Proteomes/GCF_009939195.1.faa'
 
 def get_seq_dict(path_to_fasta):
     '''
@@ -34,6 +33,37 @@ def get_seq_dict(path_to_fasta):
     return seq_dict
 
 
+
+def get_seq_dict_fulldescript(path_to_fasta):
+    '''
+    parse fast file and return as a dictionary
+    
+    parameters:
+        path_to_fasta (str): path to a fasta proteome
+        
+        return (dict): eqID as key and sequence as value
+    '''
+    seq = ''
+    seq_dict = {}
+    prot_id = None
+    with open(path_to_fasta, 'r') as f:
+        for line in f:
+            if line[0] == '>':
+                if prot_id:
+                    seq_dict[prot_id] = seq
+                line_list = line.split(' ')  
+                d1 = line_list[0][1:].strip()
+                d2 = line_list[1].strip()
+                prot_id = f'{d1}_{d2}'
+                seq = ''
+            else:
+                seq = seq + line.strip()
+        seq_dict[prot_id] = seq
+            
+    return seq_dict
+
+
+
 def get_protein_subset(path_to_fasta, seq_ids):
     '''
     return a dict with seqID as key and sequence as value
@@ -45,7 +75,9 @@ def get_protein_subset(path_to_fasta, seq_ids):
     seq_dict_subset = {}
     seq_dict = get_seq_dict(path_to_fasta)
     for i in seq_ids:
-        seq_dict_subset[i] = seq_dict.get(i)
+        seq = seq_dict.get(i)
+        if seq:
+            seq_dict_subset[i] = seq
     return seq_dict_subset
 
 
