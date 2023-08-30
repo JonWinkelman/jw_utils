@@ -49,16 +49,28 @@ class _seq_attributes:
         self.phase = anot_lst[7]
         
         
+def make_full_seq_obj_dict(path_to_gff):
+    """Return a dict {feature_ID:seq_obj} for all lines in the gff file"""
+    
+    obj_dict  = {}
+    with open(path_to_gff, 'r') as f:
+        for line in f:
+            if line[0] != '#' and line[0] != '':
+                anot_lst = line.split('\t')
+                att_dict = _make_attribut_dict(line)
+                seq_obj = _seq_attributes(line,anot_lst, att_dict)
+                obj_dict[seq_obj.ID] = seq_obj
+    return obj_dict
+        
+        
 
 def _make_attribut_dict(gff_line):
     """return a dict of attributes parsed from a NCBI-formatted gff3 line"""
     attr_list = gff_line.split('\t')[-1].split(';') #list of ['key=val','key=val','key2=val2',...]
     temp = [key_val.split('=') for key_val in attr_list]
-    return {key_val[0]:key_val[1] for key_val in temp}
+    return {key_val[0]:key_val[1].strip() for key_val in temp}
 
 
-def make_full_seq_object_dict():
-    pass
 
 
 
@@ -218,8 +230,10 @@ def make_simple_annot_df(path_to_gff, start_end=False, contig=False):
             common_name.append('')
         if contig:
             contig_name.append(jb_bug[prot].chromosome)
-
-        product.append(jb_bug[prot].product.strip())
+        if jb_bug[prot].product:
+            product.append(jb_bug[prot].product.strip())
+        else:
+            product.append(None)
     df = pd.DataFrame()
     df['gene_ID'] = genes
     df['protein_ID'] = proteins

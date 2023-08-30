@@ -46,7 +46,7 @@ def get_filepaths_in_dir(path_to_dir,
                             beg_to_exclude = None):
     
     '''
-    return full path to all files in the given directory
+    return path from working directory to all files in the given directory
     
     parameters:
         path_to_dir (str): path to the directory of interest
