@@ -81,10 +81,24 @@ def get_protein_subset(path_to_fasta, seq_ids):
     return seq_dict_subset
 
 
-def write_to_fasta(seq_dict, path):
+def write_to_fasta(seq_dict, path, line_size=None):
+    """Write sequence dict to a fasta file.
+    
+    seq_dict (dict): {name:sequence}
+    path (str): path for saved file
+    line_size (int): length of line to break the full sequence into in fasta file.
+    """
     with open(path, 'w') as f:
         for name, seq in seq_dict.items():
-            f.write(f'>{name}\n{seq}\n')
+            f.write(f'>{name}\n')
+            if line_size:
+                for i in range(int(len(seq)/line_size)):
+                    start = (i*line_size)
+                    end   = start+line_size
+                    f.write(seq[start:end] + '\n')
+                f.write(seq[end:]+ '\n')
+            else:
+                f.write(f'{seq}'+ '\n')
             
             
             
