@@ -249,6 +249,16 @@ def make_simple_annot_df(path_to_gff, start_end=False, contig=False):
     return df.set_index('gene_ID')
 
 
+def make_saf_annot_df(local_gff_fp):
+    df = make_simple_annot_df(local_gff_fp, start_end=True, contig=True)[['contig_name', 'start', 'end', 'strand']].reset_index()
+    #GeneID Chr	Start	End	Strand
+    df.columns = ['GeneID', 'Chr', 'Start', 'End', 'Strand']
+    #remove 'gene-'
+    geneids = [id.replace('gene-','') for id in list(df['GeneID'])]
+    df['GeneID'] = geneids
+    df = df.set_index('GeneID')
+    return df
+
 
 def get_gff_summary(path_to_gff):
     """NEEDS WORK!!!! return summary of genome assembly derived from gff
