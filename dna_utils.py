@@ -22,13 +22,20 @@ def rev_comp(seq):
         'T':'A',
         'C':'G',
         'G':'C',
-        'a':'t',
-        't':'a',
-        'c':'g',
-        'g':'c',
+        'Y':'R',
+        'R':'Y',
+        'S':'S',
+        'W':'W',
+        'M':'K',
+        'K':'M',
+        'V':'B',
+        'B':'V',
+        'D':'H',
+        'H':'D',
         }
     rev_comp_seq = ''
     for base in seq:
+        base = base.upper()
         rev_comp_seq = base_pair_dict[base] + rev_comp_seq
     return rev_comp_seq
     
