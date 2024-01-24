@@ -32,6 +32,7 @@ def rev_comp(seq):
         'B':'V',
         'D':'H',
         'H':'D',
+        'N':'N'
         }
     rev_comp_seq = ''
     for base in seq:
