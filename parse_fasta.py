@@ -119,6 +119,24 @@ def fasta_to_phyl(fasta_aln_path, output_path):
             
             
         
+
+def concat_fasta_files(fp_list):
+    """Takes multiple fasta files and concatenates them into one dictionary
+    
+    fp_list (list): A list of filepaths to the individual fasta files to be concatenated
+    """
+
+    concat_d = {}
+    names = []
+    for fp in fp_list:
         
+        for name, seq in pfa.get_seq_dict(fp).items():
+            if name not in names:
+                names.append(name)
+                concat_d[name] = seq
+            else:
+                raise Exception(f'{name} is present more than once in sequences')
+
+    return concat_d     
         
             
