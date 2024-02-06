@@ -130,7 +130,7 @@ def concat_fasta_files(fp_list):
     names = []
     for fp in fp_list:
         
-        for name, seq in pfa.get_seq_dict(fp).items():
+        for name, seq in get_seq_dict(fp).items():
             if name not in names:
                 names.append(name)
                 concat_d[name] = seq
