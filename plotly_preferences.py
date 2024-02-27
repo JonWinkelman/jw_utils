@@ -78,7 +78,7 @@ def scatter_layout(title=None, x_title=None, y_title=None, height=800, width=800
                                },
                        height = height,
                        width = width,
-                       legend = {'font':{'size':30}}
+                       legend = {'font':{'size':legend_fontsize}}
 
                       )
 
