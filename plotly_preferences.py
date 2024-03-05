@@ -50,12 +50,19 @@ def bargraph_layout(title, x_title, y_title, height=800, width=800, plot_bgcolor
                       
                       
                       
-def scatter_layout(title=None, x_title=None, y_title=None, height=800, width=800):
+def scatter_layout(title=None, 
+                   title_fsize=20,
+                   x_title=None, 
+                   x_title_fsize=15,
+                   y_title=None,
+                   y_title_fsize=15, 
+                   height=600, width=1100, 
+                   legend_fontsize=15):
     return go.Layout(title ={'text':title,
-                              'font':{'size':35}},
+                              'font':{'size':title_fsize}},
                       plot_bgcolor = 'rgb(255,255,255)',
                        yaxis = {'title':{'text':y_title,
-                                        'font':{'size':25},
+                                        'font':{'size':y_title_fsize},
                                         },
                                 'showline':True,
                                 'linewidth':2,
@@ -66,7 +73,7 @@ def scatter_layout(title=None, x_title=None, y_title=None, height=800, width=800
 
                                },
                           xaxis = {'title':{'text':x_title, 
-                                        'font':{'size':25},
+                                        'font':{'size':x_title_fsize},
                                         },
                                 'showline':True,
                                 'linewidth':2,
@@ -81,6 +88,3 @@ def scatter_layout(title=None, x_title=None, y_title=None, height=800, width=800
                        legend = {'font':{'size':legend_fontsize}}
 
                       )
-
-
-
