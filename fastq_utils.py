@@ -1,5 +1,6 @@
 import random
-
+from jw_utils import dna_utils as du
+import logomaker
 
 def get_numlines_in_file(fp):
     "return number of lines in a file (1-based)"
@@ -77,3 +78,70 @@ def sample_fastq(fp,fp2=None, sample_size=10000):
             for ele in line_lst:
                 f.write(ele)
         print(f'file written to "{new_fp}"')
+
+
+class FastQ_Seq_Obj:
+    def __init__(self, id,length,seq,qual):
+        self.seq = seq
+        self.length = length
+        self.id = id
+        self.quality = qual
+
+    def rev_comp(self):
+        return du.rev_comp(self.seq)
+
+
+class FastQ_File_Obj:
+    """Create a object from a sample of a fastq file.
+
+    fp : str
+        path to fastq file.
+    samplesize : int
+        number of sequences to randomly sample from the fastq file.
+    
+    """ 
+    
+    def __init__(self, fp, samplesize):
+        self.filepath = fp
+        self.samplesize = samplesize
+        self.seq_obj_dict = self.make_dict()
+        self.seqs = list(self.seq_obj_dict.values())
+        
+    
+    
+    def get_freq_matrix(self, indeces = [0,15], type='information'):
+        """
+        indeces : [start:end]
+            
+        """
+        seqs = self.get_seqs()
+        seqs = [s[indeces[0]:indeces[1]] for s in seqs]
+        return logomaker.alignment_to_matrix(seqs,to_type=type )
+
+    def make_logo(self,indeces=[0,15], type='information',):
+        return logomaker.Logo(self.get_freq_matrix(indeces, type))
+    
+    
+    def get_seqs(self):
+        return [obj.seq for obj in list(self.seq_obj_dict.values())]
+        
+
+    def make_dict(self, ):
+        line_lst = _get_lines_from_fastq(_sample_fastq(self.samplesize, self.filepath), self.filepath,     single_or_paired_end='single')
+        
+        fastq_obj_d = {}
+        for i, ele in enumerate(line_lst):
+            if i%4 == 0:
+                line_lst = ele.split(' ')
+                id = line_lst[0]
+                length = int(line_lst[-1].strip().replace('length=',''))
+                continue
+            if i%4 == 1:
+                seq=ele.strip()
+                continue
+            if i%4 == 2:
+                continue
+            if i%4 == 3:
+                qual=ele
+            fastq_obj_d[id]= FastQ_Seq_Obj(id,length,seq,qual)
+        return fastq_obj_d

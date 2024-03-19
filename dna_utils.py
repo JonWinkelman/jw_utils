@@ -5,6 +5,21 @@ Created on Thu May 26 09:12:04 2022
 
 @author: jonwinkelman
 """
+
+def rna_to_dna(rna_sequence):
+    # Replace every 'U' in the RNA sequence with 'T'
+    rna_sequence = rna_sequence.upper().strip()
+    dna_sequence = rna_sequence.replace('U', 'T')
+    return dna_sequence
+
+
+def dna_to_rna(dna_sequence):
+    # Replace every 'U' in the RNA sequence with 'T'
+    dna_sequence = dna_sequence.upper().strip()
+    rna_sequence = dna_sequence.replace('T', 'U')
+    return rna_sequence
+
+
 def rev_comp(seq):
     ''' 
     return the reverse complement of a dna sequences
