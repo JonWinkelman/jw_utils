@@ -95,3 +95,12 @@ def delete_alignment_positions(aln_dict, threshold=0.8, character_of_interest='-
     df = df.drop(columns=positions)
     seq_dict_edit = df.apply(lambda row: ''.join(row), axis=1).to_dict()
     return seq_dict_edit
+
+
+def collapse_alignment(aln_d):
+    """"""
+    collapsed_aln_d = {}
+    for name, seq in aln_d.items():
+        n_seq = seq.replace('-','')
+        collapsed_aln_d[name] = n_seq
+    return collapsed_aln_d
