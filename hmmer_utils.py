@@ -1,5 +1,8 @@
 import re
 import pandas as pd
+import os
+import subprocess
+
 
 def get_db_versions(pfam_db_fp):
     """return corresponding db version for each base pfam id {base_name:base_name.version} 
@@ -47,3 +50,38 @@ def parse_hmmsearch_output(hmm_results_fp):
     df[['E-value','score','bias','E-value_2','score_2','bias_2', 'exp']] = df[['E-value','score','bias','E-value_2','score_2','bias_2', 'exp']].astype(float)
     df[['reg','clu','ov','env','dom','rep','inc']] = df[['reg','clu','ov','env','dom','rep','inc']].astype(int)
     return df
+
+
+def run_hmm_commands(hmm_id, db_fp, proteome_fp, output_fp, hmm_file_path=None):
+    """
+    Runs hmmfetch and hmmsearch commands using the given HMM ID, database, and proteome file paths.
+    Optionally uses an HMM file path directly if provided.
+    
+    Parameters:
+    - hmm_id: The ID of the HMM to fetch and search.
+    - db_fp: File path to the HMM database.
+    - proteome_fp: File path to the proteome file.
+    - output_fp: File path to save the hmmsearch output.
+    - hmm_file_path: Optional; direct file path to an HMM file.
+    
+    Returns:
+    None
+    """
+    if hmm_file_path:
+        # If an HMM file path is provided, use it directly with hmmsearch
+        hmmsearch_cmd = f'hmmsearch --tblout {output_fp} {hmm_file_path} {proteome_fp}'
+        subprocess.run(hmmsearch_cmd, shell=True)
+    else:
+        # Constructing the hmmfetch command to fetch the HMM from the database
+        hmmfetch_cmd = f'hmmfetch {db_fp} {hmm_id}'
+        # Pipe the output of hmmfetch to hmmsearch
+        hmmsearch_cmd = f'hmmsearch --tblout {output_fp} - {proteome_fp}'
+        
+        # Execute the commands, piping hmmfetch output to hmmsearch
+        fetch_proc = subprocess.Popen(hmmfetch_cmd, stdout=subprocess.PIPE, shell=True)
+        subprocess.run(hmmsearch_cmd, stdin=fetch_proc.stdout, shell=True);
+        fetch_proc.stdout.close()
+
+
+
+
