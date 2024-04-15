@@ -137,6 +137,29 @@ def concat_fasta_files(fp_list):
             else:
                 raise Exception(f'{name} is present more than once in sequences')
 
-    return concat_d     
+    return concat_d 
+
+
+def concatenate_fasta_with_prefix(file_paths, output_file, prefix_list):
+    """
+    Concatenates multiple proteomes into a single file and appends an assembly accession prefix to each protein ID.
+
+    Parameters:
+    file_paths (list): List of file paths to the proteome FASTA files.
+    output_file (str): Path to the output file where the concatenated proteome will be saved.
+    prefix_list (list of str): List of prefixes to append to each protein ID, matching the order of the file paths.
+    """
+    if len(file_paths) != len(prefix_list):
+        raise ValueError("The number of file paths and prefixes must match.")
+    
+    with open(output_file, 'w') as outfile:
+        for file_path, prefix in zip(file_paths, prefix_list):
+            with open(file_path, 'r') as infile:
+                for line in infile:
+                    if line.startswith('>'):
+                        # Append the prefix to the protein ID in the header line
+                        outfile.write(f">{prefix}_{line[1:]}")
+                    else:
+                        outfile.write(line)
         
             
