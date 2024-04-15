@@ -83,3 +83,27 @@ def rehydrate_ncbi_dir(dehydrated_dirname):
               ]
     subprocess.run(command)
 
+
+
+def download_assembly_summaries(accessions_fp, output_file='./summaries.json'):
+    """
+    Runs the NCBI datasets summary command for genome accessions and outputs the result to a JSON file.
+    
+    accessions_fp: str, the path to the file containing accessions
+    output_file: str, the path to the output JSON file
+    """
+    # Build the command
+    command = [
+        'datasets', 'summary', 'genome', 'accession',
+        '--inputfile', accessions_fp
+    ]
+    
+    # Open the output file in write mode
+    with open(output_file, 'w') as file:
+        # Execute the command and redirect stdout to the file
+        result = subprocess.run(command, stdout=file, text=True)
+
+    # Check for errors
+    if result.returncode != 0:
+        print("Error occurred during command execution")
+
