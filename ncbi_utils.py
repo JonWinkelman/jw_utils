@@ -1,6 +1,8 @@
 import subprocess
 import os
 import zipfile
+import json
+import pandas as pd
 
 def download_genomes_from_accfile(accessions_fp, files_to_include, dataset_fp):
     """Download ncbi datasets genomes from input file containing accession on each line
@@ -107,3 +109,35 @@ def download_assembly_summaries(accessions_fp, output_file='./summaries.json'):
     if result.returncode != 0:
         print("Error occurred during command execution")
 
+
+def read_json(json_fp):
+    with open(json_fp, 'r') as file:
+        data_dict = json.load(file)
+    return data_dict
+
+def parse_ncbi_summary(json_fp):
+    """"""
+    ncbi_summary_d = read_json(json_fp)
+    summary_d = {}   
+    for report in ncbi_summary_d['reports']:
+        accession = report['accession'] 
+        summary_d[accession] = report
+    return summary_d
+
+
+def make_summary_df(json_fp):
+    summary_d = parse_ncbi_summary(json_fp)
+    cols = {'organism_name':[], 'tax_id':[]}
+    accession_lst = []
+    for acc, report in summary_d.items():
+        accession_lst.append(acc)
+        for col_name, lst in cols.items():
+            lst.append(report['organism'][col_name])
+
+    summary_df = pd.DataFrame(cols)
+    summary_df.index = accession_lst
+    return summary_df 
+
+def write_summary_to_csv(summary_json_fp, out_fp):
+    df = make_summary_df(summary_json_fp)
+    df.to_csv(out_fp)
