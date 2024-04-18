@@ -5,7 +5,9 @@ import json
 import pandas as pd
 
 def download_genomes_from_accfile(accessions_fp, files_to_include, dataset_fp):
-    """Download ncbi datasets genomes from input file containing accession on each line
+    """Download ncbi datasets genomes from input file containing accessions.
+
+        goes through dehydration, unzipping and rehydration steps.
 
     
     
@@ -21,8 +23,10 @@ def download_genomes_from_accfile(accessions_fp, files_to_include, dataset_fp):
             * gbff:       GenBank flat file
             * seq-report: sequence report file
             * none:       do not retrieve any sequence files
-    dataset_fp: str, the filename for the output zip file
+    dataset_fp: str, the filename for the output zip file, file must end with '.zip'
     """
+    if not dataset_fp.endswith('.zip'):
+        raise Exception(f'change {dataset_fp} to end with ".zip"')
     files_to_include = files_to_include.replace(' ','')
     download_dehydrated_ncbi_dataset(accessions_fp, files_to_include, dataset_fp)
     extract_path = dataset_fp.replace('.zip', '')
