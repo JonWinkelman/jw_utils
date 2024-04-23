@@ -66,7 +66,7 @@ def make_simple_itol_bargraph_dataset(outfile_path, count_dict, name_list, datas
     outfile_path
     name_list (list): same length (n) as [count1, count2,...countn]
     data_dict :dict
-        {term_node_name : [count1, count2,...countn]}
+        {term_node_name : [count]}
 
     """
     if not hexcolors:
@@ -74,6 +74,46 @@ def make_simple_itol_bargraph_dataset(outfile_path, count_dict, name_list, datas
 
     with open(outfile_path, 'w') as f:
         f.write('DATASET_SIMPLEBAR\n')
+        f.write('SEPARATOR COMMA\n')
+        f.write(f'DATASET_LABEL,{dataset_label}\n')
+        f.write(f'COLOR,{color}\n')
+        f.write(f'{_make_field_colors(name_list, hexcolors=hexcolors)}\n')
+        f.write(f'{_make_field_labels(name_list)}\n')
+        f.write(f'LEGEND_TITLE,{legend_title}\n')
+        f.write(f"LEGEND_SHAPES,{','.join(['1' for _ in name_list])}\n")
+        f.write(f'{_make_legend_colors(name_list, hexcolors=hexcolors)}\n')
+        f.write(f'{_make_legend_labels(name_list)}\n')
+        f.write('ALIGN_FIELDS,1\n')
+        f.write('DATA\n')
+
+        for name, counts in count_dict.items():
+            line = f'{name},'
+            for count in counts:
+                line = line + str(count)+','
+            line=line.strip(',') 
+            f.write(line+'\n')
+
+
+
+
+def make_itol_multi_bargraph_dataset(outfile_path, count_dict, name_list, dataset_label='dataset_label',
+                                     color='#848991', legend_title='Dataset legend', hexcolors=None,):
+    """
+    make bargraph template for itol dataset adn write to file.
+
+    Parameters
+    ----------
+    outfile_path
+    name_list (list): same length (n) as [count1, count2,...countn]
+    data_dict :dict
+        {term_node_name : [count1, count2,...countn]}
+
+    """
+    if not hexcolors:
+        hexcolors = ['#58D68D','#F4D03F','#F5B041','#AAB7B8','#566573','#A93226','#EC7063', '#A569BD', '#5DADE2','#48C9B0']
+
+    with open(outfile_path, 'w') as f:
+        f.write('DATASET_MULTIBAR\n')
         f.write('SEPARATOR COMMA\n')
         f.write(f'DATASET_LABEL,{dataset_label}\n')
         f.write(f'COLOR,{color}\n')
