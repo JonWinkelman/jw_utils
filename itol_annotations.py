@@ -205,3 +205,43 @@ def make_itol_binary_trait_dataset(outfile_path, count_dict, name_list, dataset_
                 line = line + str(count)+','
             line=line.strip(',') 
             f.write(line+'\n')
+
+
+def make_itol_colorstrip_dataset(outfile_path, data_lists, dataset_label='Phyla',
+                                     color='#848991', color_branches=1, strip_width=25,
+                                     legend_title='Dataset legend', hexcolors=None,):
+    """
+    make bargraph template for itol dataset adn write to file.
+
+    Parameters
+    ----------
+    outfile_path   : (str)
+    data_lists     : list of f strings, with each word separated by a space. First
+                     word corresponds to the name of the internal node, second is the color
+                     of colorstrip and branches, third is the displayed name.
+                    [['p__Firmicutes_A rgb(100,100,100,0.5) Firmicutes_A'], [...], [...], ...]
+    color_branches : (int) 0 or 1. Determines whether branches descending from named nodes will be colored.
+    strip_width    : (int)  Width of the annotation strip displaying node name
+    
+
+    """
+    if not hexcolors:
+        hexcolors = ['#58D68D','#F4D03F','#F5B041','#AAB7B8','#566573','#A93226','#EC7063', '#A569BD', '#5DADE2','#48C9B0']
+
+    with open(outfile_path, 'w') as f:
+        f.write('DATASET_COLORSTRIP\n')
+        f.write('SEPARATOR COMMA\n')
+        f.write(f'DATASET_LABEL,{dataset_label}\n')
+        f.write(f'COLOR,{color}\n')
+        f.write(f'COLOR_BRANCHES,{1}\n')
+        # f.write(f'{ita._make_field_colors(name_list, hexcolors=hexcolors)}\n')
+        # f.write(f'{ita._make_field_labels(name_list)}\n')
+        f.write(f'LEGEND_TITLE,{legend_title}\n')
+        f.write(f"LEGEND_SHAPES,{','.join(['1' for _ in name_list])}\n")
+        # f.write(f'{_make_legend_colors(name_list, hexcolors=hexcolors)}\n')
+        # f.write(f'{_make_legend_labels(name_list)}\n')
+        f.write(f'STRIP_WIDTH,{25}\n')
+        f.write('DATA\n')
+
+        for annot_line in data_lists:
+            f.write(annot_line+'\n')
