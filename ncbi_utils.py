@@ -3,14 +3,13 @@ import os
 import zipfile
 import json
 import pandas as pd
+import tempfile
 
 def download_genomes_from_accfile(accessions_fp, files_to_include, dataset_fp):
     """Download ncbi datasets genomes from input file containing accessions.
 
         goes through dehydration, unzipping and rehydration steps.
 
-    
-    
     accessions_fp: str, the path to the file containing ncbi assembly accessions
     files_to_include: str, the types of files to include (e.g., 'genome,protein,gff3').
             should not contain any spaces.
@@ -145,3 +144,53 @@ def make_summary_df(json_fp):
 def write_summary_to_csv(summary_json_fp, out_fp):
     df = make_summary_df(summary_json_fp)
     df.to_csv(out_fp)
+
+
+def download_genomes_from_acclist(accessions, 
+                                  files_to_include='genome,protein,gff3',  
+                                  dataset_fp="ncbi_dataset.zip"):
+    
+    """Download ncbi datasets genome assemblies from accession list or other iterable.
+
+    goes through dehydration, unzipping and rehydration steps.
+
+    accessions_fp: str, the path to the file containing ncbi assembly accessions
+    files_to_include: str, the types of files to include (e.g., 'genome,protein,gff3').
+            should not contain any spaces.
+            * genome:     genomic sequence
+            * rna:        transcript
+            * protein:    amnio acid sequences
+            * cds:        nucleotide coding sequences
+            * gff3:       general feature file
+            * gtf:        gene transfer format
+            * gbff:       GenBank flat file
+            * seq-report: sequence report file
+            * none:       do not retrieve any sequence files
+    dataset_fp: str, the filename for the output zip file, file must end with '.zip'
+    """
+    if not dataset_fp.endswith('.zip'):
+        raise Exception(f'change {dataset_fp} to end with ".zip"')
+
+    with tempfile.NamedTemporaryFile(mode='w+', delete=True) as tmp_file:
+        print(f'temp_file created at {tmp_file.name}')
+        for acc in accessions:
+            tmp_file.write(acc+'\n')
+        tmp_file.seek(0) #moves the file pointer back to start after writing
+        nu.download_genomes_from_accfile(tmp_file.name,files_to_include,dataset_fp)
+
+
+
+
+def download_assembly_summaries_from_list(accessions, output_file='./summaries.json'):
+    """
+    Downloads ncbi datasets summaries from accessions and outputs the result to a JSON file.
+    
+    accessions_fp: str, the path to the file containing accessions
+    output_file: str, the path to the output JSON file
+    """
+    with tempfile.NamedTemporaryFile(mode='w+', delete=True) as tmp_file:
+        print(f'temp_file created at {tmp_file.name}')
+        for acc in accessions:
+            tmp_file.write(acc+'\n')
+        tmp_file.seek(0) #moves the file pointer back to start after writing
+        download_assembly_summaries(tmp_file.name, output_file)
