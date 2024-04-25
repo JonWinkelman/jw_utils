@@ -83,5 +83,47 @@ def run_hmm_commands(hmm_id, db_fp, proteome_fp, output_fp, hmm_file_path=None):
         fetch_proc.stdout.close()
 
 
+import subprocess
+
+def run_hmm_alignment(db_fp, seqs_fp, hmm_id, output_fp, output_format='Stockholm'):
+    """
+    Fetches an HMM profile using hmmfetch and aligns sequences using hmmalign,
+    allowing selection of the output format.
+
+    Parameters:
+    db_fp (str): Filepath to the HMM profile database.
+    seqs_fp (str): Filepath to the FASTA file containing the sequences to be aligned.
+    hmm_id (str): ID of the HMM profile to fetch from the database.
+    output_fp (str): Filepath where the aligned sequences will be saved.
+    output_format (str): Format of the output alignment (e.g., 'Stockholm', 'Pfam', 'A2M', 'PSIBLAST').
+
+    Returns:
+    None: Writes output to a file specified by output_fp.
+    """
+    try:
+        # Set up the hmmfetch command
+        fetch_cmd = ['hmmfetch', db_fp, hmm_id]
+        # Set up the hmmalign command with the specified output format
+        align_cmd = ['hmmalign', '--outformat', output_format, '-o', output_fp, '-', seqs_fp]
+
+        # Execute hmmfetch
+        fetch_process = subprocess.Popen(fetch_cmd, stdout=subprocess.PIPE)
+        # Pipe the output of hmmfetch to hmmalign and execute
+        align_process = subprocess.Popen(align_cmd, stdin=fetch_process.stdout)
+        fetch_process.stdout.close()  # Allow fetch_process to receive a SIGPIPE if align_process exits
+        align_process.communicate()  # Wait for hmmalign to complete
+
+        if align_process.returncode != 0:
+            print("hmmalign failed to complete successfully.")
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+
+
+
+
+
+
 
 
