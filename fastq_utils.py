@@ -60,6 +60,7 @@ def _get_lines_from_fastq(id_line_nums, fp, single_or_paired_end='single'):
 
     return line_list
 
+
 def sample_fastq(fp,fp2=None, sample_size=10000):
     """Return fastq file(s) containing random sample of sequence reads
     
@@ -80,8 +81,36 @@ def sample_fastq(fp,fp2=None, sample_size=10000):
         print(f'file written to "{new_fp}"')
 
 
+def read_fastq(file_path):
+    """
+    A generator function that reads a FASTQ file and yields a sequence object
+    for each record consisting of four lines.
+
+    Parameters:
+    - file_path (str): The path to the FASTQ file.
+
+    Yields:
+    - FastQ_Seq_Obj :  Object containing the header, sequence, and quality score of each read
+                       and associated methods
+    .
+    """
+    with open(file_path, 'r') as file:
+        while True:
+            # Read the next four lines as one block
+            header = file.readline().strip()
+            if not header:
+                break  # Stop iteration if we reach the end of the file
+            sequence = file.readline().strip()
+            file.readline()  # This reads the '+' separator line and discards it
+            quality = file.readline().strip()
+
+            # Yield a dictionary containing the components of the FASTQ record
+            yield FastQ_Seq_Obj(header,len(sequence), sequence, quality)
+
+
+
 class FastQ_Seq_Obj:
-    def __init__(self, id,length,seq,qual):
+    def __init__(self, id, length, seq, qual):
         self.seq = seq
         self.length = length
         self.id = id
@@ -91,7 +120,7 @@ class FastQ_Seq_Obj:
         return du.rev_comp(self.seq)
 
 
-class FastQ_File_Obj:
+class FastQ_File_Sample_Obj:
     """Create a object from a sample of a fastq file.
 
     fp : str
