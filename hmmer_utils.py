@@ -85,7 +85,8 @@ def run_hmm_commands(hmm_id, db_fp, proteome_fp, output_fp, hmm_file_path=None):
 
 import subprocess
 
-def run_hmm_alignment(db_fp, seqs_fp, hmm_id, output_fp, output_format='Stockholm'):
+def run_hmm_alignment(db_fp, seqs_fp, hmm_id, output_fp, 
+                      output_format='Stockholm', trim=False):
     """
     Fetches an HMM profile using hmmfetch and aligns sequences using hmmalign,
     allowing selection of the output format.
@@ -104,7 +105,10 @@ def run_hmm_alignment(db_fp, seqs_fp, hmm_id, output_fp, output_format='Stockhol
         # Set up the hmmfetch command
         fetch_cmd = ['hmmfetch', db_fp, hmm_id]
         # Set up the hmmalign command with the specified output format
-        align_cmd = ['hmmalign', '--outformat', output_format, '-o', output_fp, '-', seqs_fp]
+        align_cmd = ['hmmalign', '--outformat', output_format] 
+        if trim:
+            align_cmd.append('--trim')
+        align_cmd = align_cmd + ['-o', output_fp, '-', seqs_fp]
 
         # Execute hmmfetch
         fetch_process = subprocess.Popen(fetch_cmd, stdout=subprocess.PIPE)

@@ -1,5 +1,8 @@
 from jw_utils import parse_fasta as pfa
 import pandas as pd
+import tempfile
+from Bio import AlignIO
+from Bio.Align import AlignInfo
 
 
 def get_frequency_dict(aln_dict):
@@ -104,3 +107,61 @@ def collapse_alignment(aln_d):
         n_seq = seq.replace('-','')
         collapsed_aln_d[name] = n_seq
     return collapsed_aln_d
+
+
+
+def alignment_to_matrix(aln_fp, molecule_type='prot', to_type='probability'):
+    """Make a matrix from an alignment file.
+    
+    aln_fp        (str): path to alignment file. 
+    molecule_type (str): 'prot', 'dna', 'rna'
+    to_type       (str): 'counts', 'probability'
+
+    return (pandas.DataFrame): df where columns represent columns in alignment, 0-based, and
+                               each row is a character, e.g. if molecule_type='prot' then
+                               one of the 20 AAs. 
+    """
+    
+    alignment = AlignIO.read(aln_fp, "fasta")
+    summary_align = AlignInfo.SummaryInfo(alignment)
+    consensus = summary_align.dumb_consensus()
+    freq_matrix = summary_align.pos_specific_score_matrix(consensus, chars_to_ignore=['-'])
+    num_seqs = len(alignment)
+    type='prot'
+    if molecule_type=='prot':
+        chars = ['A', 'R', 'N', 'D', 'C', 'E', 'Q', 'G', 'H', 'I', 'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W', 'Y', 'V']
+    if molecule_type=='dna':
+        chars = ['A', 'C', 'T', 'G']
+    if molecule_type=='rna':
+        chars = ['A', 'C', 'U', 'G']
+    col_names = []
+    col = {char:[] for char in chars}
+    for position, scores in enumerate(freq_matrix):
+        col_names.append(position)
+        for base, score in scores.items():
+            if to_type == 'probability':
+                col[base].append(score/num_seqs)
+            elif to_type == 'counts':
+                col[base].append(score)
+    
+    return pd.DataFrame(col).transpose()
+
+
+
+
+def dict_alignment_to_matrix(aln_dict, molecule_type='prot', to_type='probability'):
+    """Make a matrix from an alignment dict.
+    
+    aln_dict      (dict): aligment dict, {id:seq} 
+    molecule_type (str): 'prot', 'dna', 'rna'
+    to_type       (str): 'counts', 'probability'
+
+    return (pandas.DataFrame): df where columns represent columns in alignment, 0-based, and
+                               each row is a character, e.g. if molecule_type='prot' then
+                               one of the 20 AAs. 
+    """
+    with tempfile.NamedTemporaryFile(mode='w+', delete=True) as tmp_file:
+        print(f'temp_file created at {tmp_file.name}')
+        pfa.write_to_fasta(aln_dict, tmp_file.name)
+        tmp_file.seek(0) #moves the file pointer back to start after writing
+        return alignment_to_matrix(tmp_file.name, molecule_type, to_type)
