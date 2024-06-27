@@ -13,7 +13,9 @@ def get_numlines_in_file(fp):
     
     
 def _get_4th_nums(max_num):
-    """return list of indeces corresponding to fastq ID lines"""
+    """return list of indeces corresponding to fastq ID lines, 0-based
+    [0,4,8,12,...]
+    """
     nums = []
     for i in range(max_num):
         if i%4 == 0:
@@ -26,7 +28,10 @@ def _sample_fastq(sample_size, fp):
         
     """
     id_line_indeces = _get_4th_nums(get_numlines_in_file(fp))
-    sample = random.sample(population = id_line_indeces, k=sample_size)
+    if sample_size >= len(id_line_indeces):
+        sample=id_line_indeces
+    else:
+        sample = random.sample(population = id_line_indeces, k=sample_size)
     sample.sort()
     return sample
     
@@ -148,6 +153,8 @@ class FastQ_File_Sample_Obj:
         return logomaker.alignment_to_matrix(seqs,to_type=type )
 
     def make_logo(self,indeces=[0,15], type='information',):
+        """Return a logomaker logo from the indeces entered"""
+        
         return logomaker.Logo(self.get_freq_matrix(indeces, type))
     
     
@@ -156,21 +163,21 @@ class FastQ_File_Sample_Obj:
         
 
     def make_dict(self, ):
-        line_lst = _get_lines_from_fastq(_sample_fastq(self.samplesize, self.filepath), self.filepath,     single_or_paired_end='single')
+        fastq_line_list = _get_lines_from_fastq(_sample_fastq(self.samplesize, self.filepath), self.filepath, single_or_paired_end='single')
         
         fastq_obj_d = {}
-        for i, ele in enumerate(line_lst):
+        for i, ele in enumerate(fastq_line_list):
             if i%4 == 0:
                 line_lst = ele.split(' ')
                 id = line_lst[0]
-                length = int(line_lst[-1].strip().replace('length=',''))
                 continue
             if i%4 == 1:
                 seq=ele.strip()
+                seq_length = int(len(seq))
                 continue
             if i%4 == 2:
                 continue
             if i%4 == 3:
                 qual=ele
-            fastq_obj_d[id]= FastQ_Seq_Obj(id,length,seq,qual)
+            fastq_obj_d[id]= FastQ_Seq_Obj(id,seq_length,seq,qual)
         return fastq_obj_d
