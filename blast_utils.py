@@ -4,7 +4,11 @@ import pandas as pd
 
 
 def make_blast_db(input_file, dbtype, database_name):
-    """"""
+    """
+    input_file (str): path to a fasta file
+    dbtype (str): nucl, prot
+    database_name (str): desired name of the database output file
+    """
     
     cmd = ['makeblastdb',
            '-in', input_file,
