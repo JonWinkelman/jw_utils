@@ -1,5 +1,22 @@
 import re
 import pandas as pd
+import shex
+import subprocess
+
+def fold_RNA(input_fasta_fp, output_file, folding_temp):
+    """"""
+    if not os.path.exists(input_fasta_fp):
+        raise FileNotFoundError(f"{input_fasta_fp} not found")
+    
+    cmd = f"rnafold -i {input_fasta_fp} -T {folding_temp}"
+    cmd = shlex.split(cmd)
+
+    with open(output_file, 'w') as file:
+        # Execute the command and redirect stdout to the file
+        result = subprocess.run(cmd, stdout=file, text=True)
+    if result.returncode != 0:
+        print("Error occurred during command execution")
+
 
 
 def find_simple_hairpin_indices(structure, min_loop_nt=3, min_stem_len=3):
