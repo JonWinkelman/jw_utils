@@ -89,3 +89,23 @@ def get_loop_seqs(rna_strucures,rna_seqs, min_loop_nt=3):
     for rna_struc, rna_seq in zip(rna_strucures, rna_seqs):
         loop_seqs_lst.append( get_loop_seq(rna_struc,rna_seq) )
     return loop_seqs_lst
+
+
+
+def get_hairpin_seqAndstruct(rna_struc,rna_seq, min_loop_nt=3):
+    """Returns list of hp sequences and corresponding list of associated structures"""
+    simple_hairpin_indices = find_simple_hairpin_indices(rna_struc, min_loop_nt=min_loop_nt)
+    hp_seqs = []
+    hp_structs = []
+    for hairpin_indeces in simple_hairpin_indices:
+        hp_seq = rna_seq[hairpin_indeces[0]:hairpin_indeces[1]+1].upper()
+        hp_struct = rna_struc[hairpin_indeces[0]:hairpin_indeces[1]+1]
+        hp_seqs.append(hp_seq)
+        hp_structs.append(hp_struct)
+    return hp_seqs, hp_structs
+
+
+
+
+
+
