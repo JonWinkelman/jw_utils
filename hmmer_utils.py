@@ -52,7 +52,7 @@ def parse_hmmsearch_output(hmm_results_fp):
     return df
 
 
-def run_hmm_commands(hmm_id, db_fp, proteome_fp, output_fp, hmm_file_path=None):
+def run_hmm_fetch_search(hmm_id, db_fp, proteome_fp, output_fp, hmm_file_path=None):
     """
     Runs hmmfetch and hmmsearch commands using the given HMM ID, database, and proteome file paths.
     Optionally uses an HMM file path directly if provided.
@@ -125,7 +125,21 @@ def run_hmm_alignment(db_fp, seqs_fp, hmm_id, output_fp,
 
 
 
-
+def clean_up_hmmalignment(hmm_alignment_fp):
+    """removes non-sequence lines from hmm stockholm output.
+    returns (dict)
+    """
+    new_aln = []
+    new_aln_d = {}
+    with open(hmm_alignment_fp, 'r') as f:
+        for line in f:
+            if line[0] != '#':
+                if len(line) > 5:
+                    if line[0] != '/':
+                        line_lst = line.strip().split(' ')
+                        seq = line_lst[-1].replace('.', '-')
+                        new_aln_d[line_lst[0]] = seq.upper()
+    return new_aln_d
 
 
 

@@ -179,7 +179,7 @@ class GenomeUtils:
     
 
     def get_upstream_sequence(self, length_before_start,length_after_start=0,
-                            gene_list=None, feature_type='gene', prefix_format=True):
+                            gene_list=None, feature_type='gene', prefix_format=True,):
         """Return the desired length of DNA sequence before the start codon.
 
         **Sequence returned is on the same strand and orientaion as the mRNA

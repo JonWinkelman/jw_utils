@@ -33,7 +33,7 @@ def download_genomes_from_accfile(accessions_fp, files_to_include, dataset_fp):
     rehydrate_ncbi_dir(extract_path)
     
 
-def download_dehydrated_ncbi_dataset(accessions_fp, files_to_include, dataset_fp):
+def download_dehydrated_ncbi_dataset(accessions_fp, files_to_include, dataset_fp='ncbi_dataset.zip'):
     """
     Downloads an NCBI dataset using specified accessions and file types.
     

@@ -1,21 +1,33 @@
 import re
 import pandas as pd
-import shex
+import shlex
 import subprocess
+import os
 
-def fold_RNA(input_fasta_fp, output_file, folding_temp):
-    """"""
+
+
+def fold_RNA(input_fasta_fp, output_file, folding_temp=37):
+    """Takes rna sequences from fasta file and folds at a given temp.
+    
+    input_fasta_fp (str): fasta file contianing rna sequences
+    output_file (str): path of file you would like to output to
+    folding_temp (int): temperature to fold RNA. Default=37
+    noPS (bool): default True. If False, will output a Postscript file for each rna
+    """
     if not os.path.exists(input_fasta_fp):
         raise FileNotFoundError(f"{input_fasta_fp} not found")
     
-    cmd = f"rnafold -i {input_fasta_fp} -T {folding_temp}"
+    cmd = f"rnafold -i {input_fasta_fp} -T {folding_temp} --noPS"
     cmd = shlex.split(cmd)
+    print(cmd)
 
     with open(output_file, 'w') as file:
         # Execute the command and redirect stdout to the file
         result = subprocess.run(cmd, stdout=file, text=True)
+
     if result.returncode != 0:
         print("Error occurred during command execution")
+    
 
 
 
