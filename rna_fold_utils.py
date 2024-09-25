@@ -7,18 +7,22 @@ import os
 
 
 
-def fold_RNA(input_fasta_fp, output_file, folding_temp=37):
+def fold_RNA(input_fasta_fp, output_file, folding_temp=37, flags=None):
     """Takes rna sequences from fasta file and folds at a given temp.
     
     input_fasta_fp (str): fasta file contianing rna sequences
     output_file (str): path of file you would like to output to
     folding_temp (int): temperature to fold RNA. Default=37
     noPS (bool): default True. If False, will output a Postscript file for each rna
+    flags (str): e.g. '-d2 --noLP'
     """
+    if not flags:
+        flags=''
+    
     if not os.path.exists(input_fasta_fp):
         raise FileNotFoundError(f"{input_fasta_fp} not found")
     
-    cmd = f"rnafold -i {input_fasta_fp} -T {folding_temp} --noPS"
+    cmd = f"rnafold -i {input_fasta_fp} -T {folding_temp} {flags}"
     cmd = shlex.split(cmd)
     print(cmd)
 
