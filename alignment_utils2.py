@@ -91,6 +91,6 @@ def align_by_motif(loop_seqs_series, motif='GGA'):
     max_len = max([len(l) for l in l_aligned_loops])
     aligned_loops = [loop+'-'* (max_len-len(loop)) for loop in l_aligned_loops]
     loop_seqs_df = loop_seqs_series.reset_index()
-    new_col_name = loop_seqs_df.columns[0] + '_aligned'
+    new_col_name = loop_seqs_df.columns[1] + '_aligned'
     loop_seqs_df[new_col_name] = aligned_loops
     return loop_seqs_df
