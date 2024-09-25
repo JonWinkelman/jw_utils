@@ -8,9 +8,9 @@ Created on Mon Jun 27 14:39:32 2022
 
 from jw_utils import parse_gff as pgf
 import pandas as pd
-from jw_utils import parse_fasta as pf
+from jw_utils import parse_fasta as pfa
 import numpy as np
-
+from jw_utils import dna_utils as du
 
 def get_genes_wo_neighbors(path_to_gff, clearance=-5000, return_df=False):
     ''''
@@ -106,262 +106,51 @@ def rev_comp(seq):
 
 
 
-def get_feature_seq(path_to_fasta_genome, path_to_annot_file,feature_ID):   
-       
+
+
+def _get_UTR(seq_d, UTR_coords, contig, strand, b4_start,after_start):
+    """return dna sequence in fasta genome around start codon. 
     
-    fasta_dict = pf.get_seq_dict(path_to_fasta_genome) 
+    seq_d (dict): dict with fasta genome where the ID is the contig name
+    UTR_coords (list): [start, end], where start, end are top strand gene coords, not start codon
+    contig (str): contig name, corresponding to a fasta id line
+    strand (str): + or -, strand of DNA which encodes gene
+    b4_start (int): how much sequence upstream of start codon to return
+    after_start (int): how much sequence downstream of start codon to return
+    """
+    if UTR_coords[0] <0:
+        UTR_coords[0] = 0
+    if UTR_coords[1] > len(seq_d[contig]) - b4_start:
+        UTR_coords[1] = len(seq_d[contig])
+    seq = seq_d[contig][UTR_coords[0]:UTR_coords[1]]
+    if strand == '-':
+        seq = du.rev_comp(seq)
+    return seq
 
 
-# def get_feature_dna_seq(path_to_fasta_genome,  path_to_annot_file, feature_ID, feature_type='gene'):
-#     """returns the coding strand of the feature"""
-#     gff_geneObject_dict = pgf.make
-#     polarity = self.gff_geneObject_dict[gene].strand
-#     gene_start = self.gff_geneObject_dict[gene].start
-#     gene_end = self.gff_geneObject_dict[gene].end
-#     gene_seq = self.genome_seq_dict[self.chromosome_names[0]][(gene_start-1):gene_end]
-#     if polarity == '-':
-#         start_codon = gene_end
-#         stop_codon = gene_start
-#         gene_seq = rev_comp(gene_seq)
-#     return gene_seq
 
+def get_sequence_around_start(start, end, strand, contig, path_to_fasta_genome, b4_start, after_start):
+    """return dna sequence in fasta genome around start codon. 
     
-    
-class GenomeUtils:
-    def __init__(self, path_to_fasta_genome, path_to_gff):
-         
-        self.path_to_fasta_genome = path_to_fasta_genome
-        self.genome_seq_dict = pf.get_seq_dict(self.path_to_fasta_genome) 
-        self.path_to_gff = path_to_gff
-        self.fasta_dict = pf.get_seq_dict(self.path_to_fasta_genome)
-        self.gff_cdsObject_dict = pgf.make_seq_object_dict(
-                                            self.path_to_gff, 
-                                            feature_type='CDS'
-                                            ) 
-        self.gff_geneObject_dict = pgf.make_seq_object_dict(
-                                            self.path_to_gff, 
-                                            feature_type='gene'
-                                            ) 
-        self.chromosome_names = list(self.genome_seq_dict.keys())
-
-        
-        
-    def get_gene_dna_seq(self, gene):
-        """returns the coding strand of the feature"""
-        polarity = self.gff_geneObject_dict[gene].strand
-        gene_start = self.gff_geneObject_dict[gene].start
-        gene_end = self.gff_geneObject_dict[gene].end
-        gene_seq = self.genome_seq_dict[self.chromosome_names[0]][(gene_start-1):gene_end]
-        if polarity == '-':
-            start_codon = gene_end
-            stop_codon = gene_start
-            gene_seq = rev_comp(gene_seq)
-        return gene_seq
-
-    def get_feature_dna_seq(self, feature_id, feature_type, contig):
-        """Return the sequence of any given feature type within the annotation file"""
-        
-        feat_obj_dict = pgf.make_seq_object_dict(
-                                            self.path_to_gff, 
-                                            feature_type=feature_type
-                                            )   
-        polarity = feat_obj_dict[feature_id].strand
-        feature_start = feat_obj_dict[feature_id].start
-        feature_end = feat_obj_dict[feature_id].end
-        feature_seq = self.genome_seq_dict[contig][(feature_start-1):feature_end]
-        if polarity == '-':
-            start_codon = feature_end
-            stop_codon = feature_start
-            feature_seq = rev_comp(feature_seq)
-        return feature_seq
-
-
-    
-
-    def get_upstream_sequence(self, length_before_start,length_after_start=0,
-                            gene_list=None, feature_type='gene', prefix_format=True,):
-        """Return the desired length of DNA sequence before the start codon.
-
-        **Sequence returned is on the same strand and orientaion as the mRNA
-
-        Parameters:
-        length_before_start (int): length of sequence to return before start codon.
-        length_after_start (int): length of sequence to return after start codon.
-        gene_list=None (list): list of genes. Preferably with the prefix 'gene-' or 'cds-' on front, else
-                                funtion will add this prefix. 
-        feature_type (str): can be 'gene', 'CDS',.
-        prefix_format (bool): if True, return dictionary keys with 'gene-' or 'cds-' as prefix.
-
-        Return (dict):
-        dictionary with gene protein ID ('gene-...' or 'cds-...) as the key and the upstream
-        sequence as the value
-        
-        """
-        
-        avail_feature_types = ['CDS', 'gene']
-        if feature_type not in avail_feature_types:
-            raise TypeError(f'feature_type {feature_type} not in available feature types.\n Try one of the following: {avail_feature_types}') 
- 
-        contigs = list(self.genome_seq_dict.keys())
-        genome_seq = self.genome_seq_dict[contigs[0]]
-        if len(contigs) > 1: 
-            print(f'There are multiple contigs in the fasta: {self.path_to_fasta_genome}, \n attempting to use {contigs[0]}' )
-        if feature_type=='CDS': 
-            prefix = 'cds-'
-            gff_obj_dict = self.gff_cdsObject_dict
-        else:
-            prefix = 'gene-'
-            gff_obj_dict = self.gff_geneObject_dict
-        if type(gene_list) != list:
-            gene_list=list(gff_obj_dict.keys())
-        else:
-            #check for "gene-" or "CDS-" on front of feature ID
-            for i, gene in enumerate(gene_list):
-                gene = str(gene)
-                if not gene.startswith(prefix):
-                    gene = prefix + gene
-                    gene_list[i] = gene
-
-        strand= [gff_obj_dict[gene].strand if gff_obj_dict.get(gene) else None for gene in gene_list]
-        upstream_regions = {}
-        i=0
-        for gene in gene_list:
-            if gff_obj_dict.get(gene):
-                if gff_obj_dict[gene].strand == '-':
-                    region_end  = gff_obj_dict[gene].end + length_before_start
-                    region_beginning = gff_obj_dict[gene].end - length_after_start
-                    region = genome_seq[region_beginning:region_end]
-                    if prefix_format:
-                        upstream_regions[gene] = rev_comp(region)
-                    else:
-                        upstream_regions[gene.replace(prefix, '')] = rev_comp(region)
-                elif gff_obj_dict[gene].strand == '+':
-                    region_beginning = (gff_obj_dict[gene].start-length_before_start) - 1
-                    region_end = (gff_obj_dict[gene].start + length_after_start) - 1
-                    region = genome_seq[region_beginning:region_end]
-                    if prefix_format:
-                        upstream_regions[gene] = region
-                    else:
-                        upstream_regions[gene.replace(prefix, '')] = region
-            else:
-                upstream_regions[gene] = None
-
-        return upstream_regions
-
-        
-        
-
-    def get_downstream_sequence(self, length_before_stop,length_after_stop=0,
-                            gene_list=None, feature_type='gene', prefix_format=True):
-        """Return the desired length of DNA sequence after the stop codon.
-
-        **Sequence returned is on the same strand and orientaion as the mRNA
-
-        Parameters:
-        length_before_stop (int): length of sequence to return before the end of the stop codon,
-                                  e.g. if 0, then sequence starts on first nt after stop codon.
-        length_after_stop (int): length of sequence to return downstream of the coding sequence.
-        gene_list=None (list): list of genes. Preferably with the prefix 'gene-' or 'cds-' on front, else
-                                funtion will add this prefix. 
-        feature_type (str): can be 'gene', 'CDS',.
-        prefix_format (bool): if True, return dictionary keys with 'gene-' or 'cds-' as prefix.
-
-        Return (dict):
-        dictionary with gene protein ID ('gene-...' or 'cds-...) as the key and the upstream
-        sequence as the value
-        
-        """
-        avail_feature_types = ['CDS', 'gene']
-        if feature_type not in avail_feature_types:
-            raise TypeError(f'feature_type {feature_type} not in available feature types.\n Try one of the following: {avail_feature_types}') 
-            
-        contigs = list(self.genome_seq_dict.keys())
-        genome_seq = self.genome_seq_dict[contigs[0]]
-        if len(contigs) > 1: 
-            print(f'There are multiple contigs in the fasta: {self.path_to_fasta_genome}, \n attempting to use {contigs[0]}' )
-        if feature_type=='CDS': 
-            prefix = 'cds-'
-            gff_obj_dict = self.gff_cdsObject_dict
-        else:
-            prefix = 'gene-'
-            gff_obj_dict = self.gff_geneObject_dict
-        if type(gene_list) != list:
-            gene_list=list(gff_obj_dict.keys())
-        else:
-            #check for "gene-" or "CDS-" on front of feature ID
-            for i, gene in enumerate(gene_list):
-                gene = str(gene)
-                if not gene.startswith(prefix):
-                    gene = prefix + gene
-                    gene_list[i] = gene
-
-        # strand= [gff_obj_dict[gene].strand if gff_obj_dict.get(gene) else None for gene in gene_list]
-        upstream_regions = {}
-        i=0
-        for gene in gene_list:
-            if gff_obj_dict.get(gene):
-                if gff_obj_dict[gene].strand == '-':
-                    region_end  = (gff_obj_dict[gene].start + length_before_stop)-1
-                    region_beginning = (gff_obj_dict[gene].start - length_after_stop)-1
-                    region = genome_seq[region_beginning:region_end]
-                    if prefix_format:
-                        upstream_regions[gene] = rev_comp(region)
-                    else:
-                        upstream_regions[gene.replace(prefix, '')] = rev_comp(region)
-                elif gff_obj_dict[gene].strand == '+':
-                    region_beginning = gff_obj_dict[gene].end-length_before_stop
-                    region_end = gff_obj_dict[gene].end + length_after_stop
-                    region = genome_seq[region_beginning:region_end]
-                    if prefix_format:
-                        upstream_regions[gene] = region
-                    else:
-                        upstream_regions[gene.replace(prefix, '')] = region
-            else:
-                upstream_regions[gene] = None
-
-        return upstream_regions    
+    seq_d (dict): dict with fasta genome where the ID is the contig name
+    UTR_coords (list): [start, end], where start, end are top strand gene coords, not start codon
+    contig (str): contig name, corresponding to a fasta id line
+    strand (str): + or -, strand of DNA which encodes gene
+    b4_start (int): how much sequence upstream of start codon to return
+    after_start (int): how much sequence downstream of start codon to return
+    """
+    seq_d = pfa.get_seq_dict(path_to_fasta_genome)
+    if strand == '+':
+        UTR_coords = [start-(b4_start+1),start+(after_start-1)]
+        seq = _get_UTR(seq_d, UTR_coords, contig, strand,b4_start,after_start)
+    if strand == '-':
+        UTR_coords = [end-after_start, end+b4_start]
+        seq = _get_UTR(seq_d, UTR_coords, contig, strand, b4_start,after_start)
+    return seq
 
     
     
-    
-    
-class ProteomeUtils:
-    def __init__(self, path_to_proteome, path_to_gff):  
-        self.path_to_proteome = path_to_proteome
-        self.path_to_gff = path_to_gff
-        self.protein_seq_dict =  pf.get_seq_dict(self.path_to_proteome)
-     
-    
-    def get_AA_seq_for_protein(self, protein):
-        return self.protein_seq_dict[protein]
-        
-    def get_get_AA_seq_for_proteins(self, protein_list):
-        AA_seqs = [self.protein_seq_dict.get(protein.replace('cds-','')) for protein in protein_list]
-        return pd.DataFrame({'protein ID':protein_list, 'AA_seq':AA_seqs}).set_index('protein ID')
-            
-            
-    def get_DNA_seq_for_proteins(self, path_fasta_genome, protein_list):
-        '''
-        returns the DNA sequences for the input proteins
-        parameters]
-    
-        '''
-        genome_obj = GenomeUtils(path_fasta_genome, self.path_to_gff)
-        prot2gene_dict = pgf.make_prot2gene_dict(self.path_to_gff)
-        seqs = []
-        genes = []
-        proteins = []
-        for protein in protein_list:
-            gene = prot2gene_dict.get(protein)
-            if genome_obj.gff_geneObject_dict.get(gene):
-                seq = genome_obj.get_gene_dna_seq(gene)
-            else:
-                seq = ''
-            seqs.append(seq)
-            genes.append(gene)
-            proteins.append(protein)
-        df = pd.DataFrame({'protein ID':proteins,'gene ID':genes, 'sequence':seqs})
-        return df.set_index('protein ID')
+
 
         
     
