@@ -1,3 +1,4 @@
+
 import re
 import pandas as pd
 import shlex
@@ -64,6 +65,8 @@ def find_simple_hairpin_indices(structure, min_loop_nt=3, min_stem_len=3):
     simple_hairpin_indices
     
     return simple_hairpin_indices
+
+
 
 def find_simple_hairpin_loop_indices(structure, min_loop_nt=3):
     """
