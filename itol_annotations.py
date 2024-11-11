@@ -13,6 +13,9 @@ def rgb_to_hex():
                 'rgb(247,141,167)':'#f78da7'}
 
 
+def make_pie_labels_dataset():
+    """"""
+
 
 def _make_field_labels(name_list):
     """return itol line with field labels pulled from from name list"""
@@ -54,6 +57,57 @@ def _make_legend_labels(name_list):
         legend_labels =f'{legend_labels}{name},'
     legend_labels=legend_labels.strip(',')
     return legend_labels
+
+
+def make_itol_pie_dataset(outfile_path,
+                            count_dict,
+                            name_list,
+                            dataset_label='dataset_label',
+                            color='#848991',
+                            legend_title='Dataset legend',
+                            hexcolors=None,
+                         ):
+    
+    """    
+
+    Parameters
+    ----------
+    outfile_path
+    name_list (list): name for each value in the pie, must be same number of elements as the 
+                      number of values in the pie, e.g 2[location, radius, val1, val2,...]
+    data_dict :dict
+        location can == 0 or -1, internal or external
+        {term_node_name : [location, radius, val1, val2,...]}
+    """
+    
+    if not hexcolors:
+        hexcolors = ['#F5B041','#AAB7B8','#566573','#A93226','#EC7063', '#A569BD', '#5DADE2','#48C9B0','#58D68D','#F4D03F']
+    file_lst = []
+    
+    file_lst.append('DATASET_PIECHART\n')
+    file_lst.append('SEPARATOR COMMA\n')
+    file_lst.append(f'DATASET_LABEL,{dataset_label}\n')
+    file_lst.append(f'COLOR,{color}\n')
+    file_lst.append(f'{_make_field_colors(name_list, hexcolors=hexcolors)}\n')
+    file_lst.append(f'{_make_field_labels(name_list)}\n')
+    file_lst.append(f'LEGEND_TITLE,{legend_title}\n')
+    file_lst.append(f"LEGEND_SHAPES,{','.join(['1' for _ in name_list])}\n")
+    file_lst.append(f'{_make_legend_colors(name_list, hexcolors=hexcolors)}\n')
+    file_lst.append(f'{_make_legend_labels(name_list)}\n')
+    file_lst.append('ALIGN_FIELDS,1\n')
+    file_lst.append('DATA\n')
+    
+    
+    for name, counts in count_dict.items():
+        line = f'{name},'
+        for count in counts:
+            line = line + str(count)+','
+        line=line.strip(',') 
+        file_lst.append((line+'\n'))
+    file_lst
+    with open(outfile_path, 'w') as f:
+        for ele in file_lst:
+            f.write(ele)
 
 
 def make_simple_itol_bargraph_dataset(outfile_path, count_dict, name_list, dataset_label='dataset_label',
@@ -208,7 +262,7 @@ def make_itol_binary_trait_dataset(outfile_path, count_dict, name_list, dataset_
 
 
 def make_itol_colorstrip_dataset(outfile_path, data_lists, dataset_label='Phyla',
-                                     color='#848991', color_branches=1, strip_width=25,
+                                     dataset_label_color='#848991', color_branches=1, strip_width=25,
                                      legend_title='Dataset legend', hexcolors=None,):
     """
     make bargraph template for itol dataset adn write to file.
@@ -230,17 +284,17 @@ def make_itol_colorstrip_dataset(outfile_path, data_lists, dataset_label='Phyla'
 
     with open(outfile_path, 'w') as f:
         f.write('DATASET_COLORSTRIP\n')
-        f.write('SEPARATOR COMMA\n')
-        f.write(f'DATASET_LABEL,{dataset_label}\n')
-        f.write(f'COLOR,{color}\n')
-        f.write(f'COLOR_BRANCHES,{1}\n')
+        f.write('SEPARATOR SPACE\n')
+        f.write(f'DATASET_LABEL {dataset_label}\n')
+        f.write(f'COLOR {dataset_label_color}\n')
+        f.write(f'COLOR_BRANCHES {color_branches}\n')
         # f.write(f'{ita._make_field_colors(name_list, hexcolors=hexcolors)}\n')
         # f.write(f'{ita._make_field_labels(name_list)}\n')
-        f.write(f'LEGEND_TITLE,{legend_title}\n')
-        f.write(f"LEGEND_SHAPES,{','.join(['1' for _ in name_list])}\n")
+        f.write(f'LEGEND_TITLE {legend_title}\n')
+        #f.write(f"LEGEND_SHAPES,{','.join(['1' for _ in name_list])}\n")
         # f.write(f'{_make_legend_colors(name_list, hexcolors=hexcolors)}\n')
         # f.write(f'{_make_legend_labels(name_list)}\n')
-        f.write(f'STRIP_WIDTH,{25}\n')
+        f.write(f'STRIP_WIDTH {strip_width}\n')
         f.write('DATA\n')
 
         for annot_line in data_lists:
