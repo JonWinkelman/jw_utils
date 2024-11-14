@@ -176,7 +176,7 @@ def download_genomes_from_acclist(accessions,
         for acc in accessions:
             tmp_file.write(acc+'\n')
         tmp_file.seek(0) #moves the file pointer back to start after writing
-        nu.download_genomes_from_accfile(tmp_file.name,files_to_include,dataset_fp)
+        download_genomes_from_accfile(tmp_file.name,files_to_include,dataset_fp)
 
 
 
