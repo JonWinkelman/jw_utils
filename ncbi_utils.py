@@ -4,7 +4,7 @@ import zipfile
 import json
 import pandas as pd
 import tempfile
-
+import shutil
 def download_genomes_from_accfile(accessions_fp, files_to_include, dataset_fp):
     """Download ncbi datasets genomes from input file containing accessions.
 
@@ -194,3 +194,53 @@ def download_assembly_summaries_from_list(accessions, output_file='./summaries.j
             tmp_file.write(acc+'\n')
         tmp_file.seek(0) #moves the file pointer back to start after writing
         download_assembly_summaries(tmp_file.name, output_file)
+
+
+def move_proteomes(data_dir, new_proteome_dir = './Proteomes'):
+    """Moves proteomes from the nested ncbi data dirs to own dir and renames with accesion.faa"""
+    
+    os.makedirs(new_proteome_dir, exist_ok=True)
+    no_proteome = []
+    accs = [dir for dir in os.listdir(data_dir) if dir.startswith('GC')]
+    for acc in accs:
+        fp = os.path.join(data_dir, acc, 'protein.faa')
+        if os.path.exists(fp):
+            new_fp = os.path.join(new_proteome_dir, f'{acc}.faa')
+            shutil.move(fp,new_fp )
+        else:
+            no_proteome.append(acc)
+    return no_proteome
+
+def move_genomes(data_dir, new_genome_dir = './Genomes'):
+    """Moves genomes from the nested ncbi data dirs to own dir and renames with accesion.fna"""
+    
+    os.makedirs(new_genome_dir, exist_ok=True)
+    no_genome = []
+    accs = [dir for dir in os.listdir(data_dir) if dir.startswith('GC')]
+    for acc in accs:
+        for file in os.listdir(os.path.join(data_dir, acc)):
+            if file.endswith('.fna'):
+                print(file)
+                fp = os.path.join(data_dir, acc, file)
+                if os.path.exists(fp):
+                    new_fp = os.path.join(new_genome_dir, f'{acc}.fna')
+                    print(new_fp)
+                    shutil.move(fp,new_fp )
+                else:
+                    no_genome.append(acc)
+    return no_genome
+
+def move_gffs(data_dir, new_gff_dir = './gff_files'):
+    """Moves proteomes from the nested ncbi data dirs to own dir and renames with accesion.faa"""
+    
+    os.makedirs(new_gff_dir, exist_ok=True)
+    no_gff = []
+    accs = [dir for dir in os.listdir(data_dir) if dir.startswith('GC')]
+    for acc in accs:
+        fp = os.path.join(data_dir, acc, 'genomic.gff')
+        if os.path.exists(fp):
+            new_fp = os.path.join(new_gff_dir, f'{acc}.gff')
+            shutil.move(fp,new_fp )
+        else:
+            no_gff.append(acc)
+    return no_gff
