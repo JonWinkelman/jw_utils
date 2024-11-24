@@ -83,7 +83,11 @@ def run_hmm_fetch_search(hmm_id, db_fp, proteome_fp, output_fp, hmm_file_path=No
         fetch_proc.stdout.close()
 
 
-import subprocess
+def run_simple_search(hmm_profile_path, output_fp, proteome_fp):
+
+    hmmsearch_cmd = f'hmmsearch --tblout {output_fp} {hmm_profile_path} {proteome_fp}'
+    subprocess.run(hmmsearch_cmd, shell=True)
+    
 
 def run_hmm_alignment(db_fp, seqs_fp, hmm_id, output_fp, 
                       output_format='Stockholm', trim=False):
@@ -122,6 +126,33 @@ def run_hmm_alignment(db_fp, seqs_fp, hmm_id, output_fp,
 
     except Exception as e:
         print(f"An error occurred: {e}")
+
+
+
+def run_simple_hmm_alignment(seqs_fp, hmm_fp, output_fp, 
+                      output_format='Stockholm', trim=False):
+    """
+    Aligns sequences using hmmalign
+
+    Parameters:
+    seqs_fp (str): Filepath to the FASTA file containing the sequences to be aligned.
+    hmm_id (str): ID of the HMM profile to fetch from the database.
+    output_fp (str): Filepath where the aligned sequences will be saved.
+    output_format (str): Format of the output alignment (e.g., 'Stockholm', 'Pfam', 'A2M', 'PSIBLAST').
+
+    Returns:
+    None: Writes output to a file specified by output_fp.
+    """
+    align_cmd = ['hmmalign', '--outformat', output_format] 
+    if trim:
+        align_cmd.append('--trim')
+    align_cmd = align_cmd + ['-o', output_fp, hmm_fp, seqs_fp]
+
+    subprocess.run(align_cmd, shell=True)
+
+
+
+
 
 
 
