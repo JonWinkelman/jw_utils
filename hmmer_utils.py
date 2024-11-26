@@ -43,10 +43,16 @@ def parse_hmmsearch_output(hmm_results_fp):
                 cleaned_line_lst = cleaned_line_lst[:18]
                 cleaned_line_lst.append(targe_desc)
                 lines.append(cleaned_line_lst)
-    df = pd.DataFrame(lines)
-    df.columns = ['target_name','accession1','query_name','accession',
-      'E-value','score','bias','E-value_2','score_2','bias_2',
-      'exp','reg','clu','ov','env','dom','rep','inc','description_of_target']
+    columns = ['target_name','accession1','query_name','accession',
+              'E-value','score','bias','E-value_2','score_2','bias_2',
+              'exp','reg','clu','ov','env','dom','rep','inc','description_of_target']
+    if len(lines)<1:
+        return pd.DataFrame(columns=columns)
+    else:
+        df = pd.DataFrame(lines, columns=columns)
+    # df.columns = ['target_name','accession1','query_name','accession',
+    #   'E-value','score','bias','E-value_2','score_2','bias_2',
+    #   'exp','reg','clu','ov','env','dom','rep','inc','description_of_target']
     df[['E-value','score','bias','E-value_2','score_2','bias_2', 'exp']] = df[['E-value','score','bias','E-value_2','score_2','bias_2', 'exp']].astype(float)
     df[['reg','clu','ov','env','dom','rep','inc']] = df[['reg','clu','ov','env','dom','rep','inc']].astype(int)
     return df
@@ -85,7 +91,7 @@ def run_hmm_fetch_search(hmm_id, db_fp, proteome_fp, output_fp, hmm_file_path=No
 
 def run_simple_search(hmm_profile_path, output_fp, proteome_fp):
 
-    hmmsearch_cmd = f'hmmsearch --tblout {output_fp} {hmm_profile_path} {proteome_fp}'
+    hmmsearch_cmd = f'hmmsearch --tblout {output_fp} -o temp.txt {hmm_profile_path} {proteome_fp}'
     subprocess.run(hmmsearch_cmd, shell=True)
     
 
