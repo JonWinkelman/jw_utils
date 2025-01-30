@@ -170,7 +170,7 @@ def get_simple_volc_trace(xvals, yvals,
 
 def _get_significant_gene_filt(df, pval_cutoff=0.05, FC_cutoff=5): 
     fc_filt = (df.iloc[:, 2] > np.log2(FC_cutoff)) | (df.iloc[:, 2] < np.log2(1/FC_cutoff))
-    sig_vals_filt = fc_filt & (df.iloc[:, 3] < -np.log10(pval_cutoff))
+    sig_vals_filt = fc_filt & (df.iloc[:, 3] > (-np.log10(pval_cutoff))  )
     return sig_vals_filt
 
 
@@ -185,6 +185,7 @@ def get_volc_traces(df, text_annots=None, gff_fp=None, pval_cutoff = 0.05, FC_cu
     
     #get_significant_genes
     significant_genes_filt = _get_significant_gene_filt(df, pval_cutoff, FC_cutoff)
+    print()
     df_significant = df[significant_genes_filt]
     xvals, yvals = list(df_significant.iloc[:, 2]), list(df_significant.iloc[:, 3])
     if text_annots:
