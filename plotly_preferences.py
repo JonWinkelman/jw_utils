@@ -15,6 +15,54 @@ colors = ['rgba(132,137,145,1)',
 'rgb(247,141,167)',
 ]
 
+def interpolate_colorscale(colorscale_name='earth', n=20, return_swatch_fig=False):
+    """
+    Interpolates a Plotly colorscale to have `n` equally spaced colors.
+    
+    Args:
+        colorscale (list): Original Plotly colorscale.
+        n (int): Number of points in the new colorscale.
+
+        *use px.colors.named_colorscales() to list all colorscale name options    
+    Returns:
+        list: Interpolated colorscale with `n` entries.
+    """
+    colorscale = px.colors.get_colorscale(colorscale_name)
+    colors = px.colors.sample_colorscale(colorscale, samplepoints=n, low=0, high=1)
+    if return_swatch_fig:
+        
+    return colors 
+
+
+def plot_colorscale(colorscale_name, n=20):
+    """Generate a visualization of a Plotly colorscale.
+    
+    *use px.colors.named_colorscales() to list all colorscale name options    
+    
+    """
+    colorscale = px.colors.sample_colorscale(px.colors.get_colorscale(colorscale_name), 
+                                             [i / (n - 1) for i in range(n)])
+
+    # Create a heatmap with one column and multiple rows for the colorscale
+    fig = go.Figure(go.Heatmap(
+        z=np.linspace(0, 1, n).reshape(n, 1),  # Gradient values from 0 to 1
+        x=[0],  # Dummy x-axis
+        y=np.linspace(1, 0, n),  # Reverse y-axis for top-to-bottom display
+        colorscale=colorscale,
+        showscale=False  # Hide colorbar
+    ))
+
+    fig.update_layout(
+        title=f"Colorscale: {colorscale_name}",
+        yaxis=dict(showticklabels=False),
+        xaxis=dict(showticklabels=False)
+    )
+
+    return fig
+
+
+
+
 def bargraph_layout(title, x_title, y_title, height=800, width=800, plot_bgcolor ='rgb(255,255,255)',
                     legend_fontsize=30, yaxis_fontsize=25, xaxis_fontsize = 25):
     return go.Layout(title ={'text':title,
