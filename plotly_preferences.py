@@ -1,4 +1,7 @@
 from plotly import graph_objects as go
+import plotly.express as px
+import numpy as np
+
 
 colors = ['rgba(132,137,145,1)',
 'rgb(0,208,132)',
@@ -29,8 +32,6 @@ def interpolate_colorscale(colorscale_name='earth', n=20, return_swatch_fig=Fals
     """
     colorscale = px.colors.get_colorscale(colorscale_name)
     colors = px.colors.sample_colorscale(colorscale, samplepoints=n, low=0, high=1)
-    if return_swatch_fig:
-        
     return colors 
 
 
