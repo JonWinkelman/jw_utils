@@ -174,9 +174,21 @@ def _get_significant_gene_filt(df, pval_cutoff=0.05, FC_cutoff=5):
     return sig_vals_filt
 
 
+def get_significant_genes_df(df, pval_cutoff, FC_cutoff, gff_fp=None):
+    """
+    
+    df (pd.DataFrame): with first 4 cols: up mean, ref mean, log2_FC, and -log10_pval. Index is gene name
+    """
+      
+    f = _get_significant_gene_filt(df, pval_cutoff,FC_cutoff)
+    sig_df = df[f]
+    if gff_fp:
+        return sig_df.join(pgf.make_simple_annot_df(gff_fp))
+    else:
+        return sig_df
 
 def get_volc_traces(df, text_annots=None, gff_fp=None, pval_cutoff = 0.05, FC_cutoff=2,
-                   marker_color_sig='red', marker_color_nonsig='rgba(100,100,100,0.3)'):
+                   marker_color_sig='red', marker_color_nonsig='rgba(100,100,100,0.3)', marker_size_sig=4):
     """
     df (pd.DataFrame): with first 4 cols: up mean, ref mean, log2_FC, and -log10_pval. Index is gene name 
     
@@ -192,12 +204,12 @@ def get_volc_traces(df, text_annots=None, gff_fp=None, pval_cutoff = 0.05, FC_cu
         text_annots = make_text_annot(df_significant, gff_fp)
         
     sig_volcano_trace = get_simple_volc_trace(xvals, yvals, text=text_annots, name='significant_genes', 
-                                              marker_color=marker_color_sig)
+                                              marker_color=marker_color_sig, marker_size=marker_size_sig)
 
     # get non-significant trace
     df_nonsignificant = df[~significant_genes_filt]
     xvals, yvals = list(df_nonsignificant.iloc[:, 2]), list(df_nonsignificant.iloc[:, 3])
-    nonsig_volcano_trace = get_simple_volc_trace(xvals, yvals, text=None, name=None,
+    nonsig_volcano_trace = get_simple_volc_trace(xvals, yvals, text=None, name='non significant genes',
                                                 marker_color=marker_color_nonsig)
    
 
