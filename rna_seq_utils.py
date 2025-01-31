@@ -144,18 +144,20 @@ def make_text_annot(df, gff_fp, feature_type='gene'):
     ref_means = list(df[ref_colname])
     
     annot_df = pgf.make_simple_annot_df(gff_fp)
-    if feature_names[0].startswith(feature_type):
+    if not feature_names[0].startswith(feature_type):
+        df.index = [f'{feature_type.lower()}-' + i for i in df.index]
         """"""
     
-        annot_dict = annot_df.apply(lambda x: list(x), axis=1).to_dict()
-        text_annots = []
-        for feat, up_mean, ref_mean in zip(feature_names, up_means, ref_means):
-            s=""
-            up_mean=round(up_mean, 2)
-            ref_mean=round(ref_mean, 2)
-            annots = annot_dict.get(feat, ['nan','nan','nan'])
-            annot_str = f'<br>gene:{annots[1]}<br>protein:{annots[0]}<br>product:{annots[2]}<br>{up_colname}:{up_mean}<br> {ref_colname}: {ref_mean}'
-            text_annots.append(annot_str)
+    annot_dict = annot_df.apply(lambda x: list(x), axis=1).to_dict()
+    text_annots = []
+    for feat, up_mean, ref_mean in zip(feature_names, up_means, ref_means):
+        s=""
+        up_mean=round(up_mean, 2)
+        ref_mean=round(ref_mean, 2)
+        annots = annot_dict.get(feat, ['nan','nan','nan'])
+        annot_str = f'<br>gene:{annots[1]}<br>protein:{annots[0]}<br>product:{annots[2]}<br>{up_colname}:{up_mean}<br> {ref_colname}: {ref_mean}'
+        text_annots.append(annot_str)
+    
     return text_annots
 
 
