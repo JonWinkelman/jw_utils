@@ -176,6 +176,8 @@ def _get_significant_gene_filt(df, pval_cutoff=0.05, FC_cutoff=5):
     return sig_vals_filt
 
 
+
+
 def get_significant_genes_df(df, pval_cutoff, FC_cutoff, gff_fp=None):
     """
     
@@ -190,12 +192,13 @@ def get_significant_genes_df(df, pval_cutoff, FC_cutoff, gff_fp=None):
         return sig_df
 
 def get_volc_traces(df, text_annots=None, gff_fp=None, pval_cutoff = 0.05, FC_cutoff=2,
-                   marker_color_sig='red', marker_color_nonsig='rgba(100,100,100,0.3)', marker_size_sig=4):
+                   marker_color_sig='red', marker_color_nonsig='rgba(100,100,100,0.3)', marker_size_sig=4,):
     """
     df (pd.DataFrame): with first 4 cols: up mean, ref mean, log2_FC, and -log10_pval. Index is gene name 
     
     In 0 indexing for iloc, FC_col=2, -log10_pval=3
     """
+
     
     #get_significant_genes
     significant_genes_filt = _get_significant_gene_filt(df, pval_cutoff, FC_cutoff)
@@ -213,8 +216,24 @@ def get_volc_traces(df, text_annots=None, gff_fp=None, pval_cutoff = 0.05, FC_cu
     xvals, yvals = list(df_nonsignificant.iloc[:, 2]), list(df_nonsignificant.iloc[:, 3])
     nonsig_volcano_trace = get_simple_volc_trace(xvals, yvals, text=None, name='non significant genes',
                                                 marker_color=marker_color_nonsig)
+
    
 
     return sig_volcano_trace, nonsig_volcano_trace
+
+def add_cutoff_traces(fig, pval_cutoff, FC_cutoff, row, col):
+    """add cutoff traces to a plotly figure"""
+    
+    yline= [-np.log10(pval_cutoff), -np.log10(pval_cutoff)]
+    VR_xline= [np.log2(FC_cutoff), np.log2(FC_cutoff)]
+    VL_xline= [-np.log2(FC_cutoff), -np.log2(FC_cutoff)]
+    
+    htrace = go.Scatter(y=yline, x=fig.layout.xaxis.range, mode='lines', line={'color':'rgba(50,0,0,0.1)'}, showlegend=False)
+    VR_trace = go.Scatter(y=fig.layout.yaxis.range, x=VR_xline, mode='lines', line={'color':'rgba(50,0,0,0.1)'}, showlegend=False)
+    VL_trace = go.Scatter(y=fig.layout.yaxis.range, x=VL_xline, mode='lines', line={'color':'rgba(50,0,0,0.1)'}, showlegend=False)
+    fig.add_trace(htrace, row, col)
+    fig.add_trace(VR_trace, row, col)
+    fig.add_trace(VL_trace, row, col)
+    return fig
 
     
