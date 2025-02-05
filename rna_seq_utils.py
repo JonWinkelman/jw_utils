@@ -54,9 +54,9 @@ def make_comparison_df_dict(samp_info_df, contrast_df,
     contrast_df: communicates which groups to compare
 
 
-    variable	up	  reference
-    _________________________
-    group	  far_red   dark
+    id                 variable	     up	  reference
+    _______________________________________________
+    far_red-vs-dark     group	  far_red   dark
                         
     """
     comp_dfs = {}
@@ -67,9 +67,10 @@ def make_comparison_df_dict(samp_info_df, contrast_df,
         ref_sample_fps = [os.path.join(subread_dir, f'{f}{file_suffix}') for f in ref_samples]
         up_df = reads_per_mil_normalization(create_merged_genecounts_df(up_sample_fps) )
         ref_df = reads_per_mil_normalization(create_merged_genecounts_df(ref_sample_fps)  )
-        comp_dfs[f"{row['up']}_v_{row['reference']}"] = up_df,ref_df
-
+        name=row['id']
+        comp_dfs[name] = up_df,ref_df
     return comp_dfs
+    
 
 def log2_fold_change(up_vals, reference_vals, fraction=0.001):
     """
@@ -108,8 +109,8 @@ def make_stats_df(comp_dfs_d):
     """
     stat_dfs = {}
     for name, dfs in comp_dfs_d.items():
-        up = name.split('_v_')[0]
-        ref = name.split('_v_')[1]
+        up = name.split('-vs-')[0]
+        ref = name.split('-vs-')[1]
         df_stat = pd.DataFrame()
         up_colname, ref_colname = f'{up}_mean_rpm', f'{ref}_mean_rpm'
         df_stat[up_colname] =  dfs[0].apply(lambda x: x.sum()/len(x), axis=1)
@@ -137,16 +138,18 @@ def make_text_annot(df, gff_fp, feature_type='gene'):
     index of df should be a gene name witht the same format used in the gff file, e.g. gene-<geneid>
     
     """
+
     feature_names = list(df.index)
+    if not feature_names[0].startswith(feature_type):
+        df.index = [f'{feature_type.lower()}-' + i for i in df.index]
+        feature_names = list(df.index)
     up_colname = df.columns[0]
     up_means = list(df[up_colname])
     ref_colname = df.columns[1]
     ref_means = list(df[ref_colname])
     
     annot_df = pgf.make_simple_annot_df(gff_fp)
-    if not feature_names[0].startswith(feature_type):
-        df.index = [f'{feature_type.lower()}-' + i for i in df.index]
-        """"""
+
     
     annot_dict = annot_df.apply(lambda x: list(x), axis=1).to_dict()
     text_annots = []
