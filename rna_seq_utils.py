@@ -169,15 +169,29 @@ def get_simple_volc_trace(xvals, yvals,
                           text=None, 
                           name=None, 
                           marker_size=2, 
-                          marker_color='rgba(100,100,100,0.2)'):
+                          marker_color='rgba(100,100,100,0.2)',
+                         **kwargs):
+    
     return go.Scatter(x=xvals, y=yvals, text=text, mode='markers',
-                      marker={'size':marker_size, 'color':marker_color}, name=name,)
+                      marker={'size':marker_size, 'color':marker_color}, name=name,**kwargs)
 
-def _get_significant_gene_filt(df, pval_cutoff=0.05, FC_cutoff=5): 
-    fc_filt = (df.iloc[:, 2] > np.log2(FC_cutoff)) | (df.iloc[:, 2] < np.log2(1/FC_cutoff))
-    sig_vals_filt = fc_filt & (df.iloc[:, 3] > (-np.log10(pval_cutoff))  )
-    return sig_vals_filt
+# def _get_significant_gene_filt(df, pval_cutoff=0.05, FC_cutoff=5): 
+#     fc_filt = (df.iloc[:, 2] > np.log2(FC_cutoff)) | (df.iloc[:, 2] < np.log2(1/FC_cutoff))
+#     sig_vals_filt = fc_filt & (df.iloc[:, 3] > (-np.log10(pval_cutoff))  )
+#     return sig_vals_filt
 
+
+def _get_significant_gene_filt(df, pval_cutoff=0.05, FC_cutoff=5):
+    """Return two filters, up and down regulated genes
+
+    df (pd.DataFrame): with first 4 cols: up mean, ref mean, log2_FC, and -log10_pval. Index is gene name
+    index of df should be a gene name witht the same format used in the gff file, e.g. gene-<geneid>
+    """
+    
+    pval_filt = df.iloc[:, 3] > -np.log10(pval_cutoff)
+    up_regulated = pval_filt & (df.iloc[:, 2] > np.log2(FC_cutoff))
+    down_regulated = pval_filt & (df.iloc[:, 2] < -np.log2(FC_cutoff))
+    return up_regulated, down_regulated
 
 
 
@@ -187,42 +201,49 @@ def get_significant_genes_df(df, pval_cutoff, FC_cutoff, gff_fp=None):
     df (pd.DataFrame): with first 4 cols: up mean, ref mean, log2_FC, and -log10_pval. Index is gene name
     """
       
-    f = _get_significant_gene_filt(df, pval_cutoff,FC_cutoff)
-    sig_df = df[f]
+    up_f, down_f = _get_significant_gene_filt(df, pval_cutoff,FC_cutoff)
+    sig_df = df[up_f | down_f]
     if gff_fp:
         return sig_df.join(pgf.make_simple_annot_df(gff_fp))
     else:
         return sig_df
 
 def get_volc_traces(df, text_annots=None, gff_fp=None, pval_cutoff = 0.05, FC_cutoff=2,
-                   marker_color_sig='red', marker_color_nonsig='rgba(100,100,100,0.3)', marker_size_sig=4,):
+                   up_reg_color='blue',down_reg_color='red', marker_color_nonsig='rgba(100,100,100,0.3)', marker_size_sig=4,):
     """
     df (pd.DataFrame): with first 4 cols: up mean, ref mean, log2_FC, and -log10_pval. Index is gene name 
     
     In 0 indexing for iloc, FC_col=2, -log10_pval=3
     """
 
-    
+
     #get_significant_genes
-    significant_genes_filt = _get_significant_gene_filt(df, pval_cutoff, FC_cutoff)
-    print()
-    df_significant = df[significant_genes_filt]
-    xvals, yvals = list(df_significant.iloc[:, 2]), list(df_significant.iloc[:, 3])
+    up_genes_filt, down_genes_filt = _get_significant_gene_filt(df, pval_cutoff, FC_cutoff)
+    df_up = df[up_genes_filt]
+    df_down = df[down_genes_filt]
+    up_xvals, up_yvals = list(df_up.iloc[:, 2]), list(df_up.iloc[:, 3])
+    down_xvals, down_yvals = list(df_down.iloc[:, 2]), list(df_down.iloc[:, 3])
     if text_annots:
-        text_annots = make_text_annot(df_significant, gff_fp)
+        up_text_annots = make_text_annot(df_up, gff_fp)
+        down_text_annots = make_text_annot(df_down, gff_fp)
         
-    sig_volcano_trace = get_simple_volc_trace(xvals, yvals, text=text_annots, name='significant_genes', 
-                                              marker_color=marker_color_sig, marker_size=marker_size_sig)
+    up_sig_volcano_trace = get_simple_volc_trace(up_xvals, up_yvals, text=up_text_annots, name='up_reg_genes', 
+                                              marker_color=up_reg_color, marker_size=marker_size_sig)
+
+    down_sig_volcano_trace = get_simple_volc_trace(down_xvals, down_yvals, text=down_text_annots, name='down_reg_genes', 
+                                              marker_color=down_reg_color, marker_size=marker_size_sig)
 
     # get non-significant trace
-    df_nonsignificant = df[~significant_genes_filt]
+    df_nonsignificant = df[~(up_genes_filt | down_genes_filt)]
     xvals, yvals = list(df_nonsignificant.iloc[:, 2]), list(df_nonsignificant.iloc[:, 3])
     nonsig_volcano_trace = get_simple_volc_trace(xvals, yvals, text=None, name='non significant genes',
-                                                marker_color=marker_color_nonsig)
+                                                marker_color=marker_color_nonsig, hoverinfo="skip")
 
    
 
-    return sig_volcano_trace, nonsig_volcano_trace
+    return up_sig_volcano_trace, down_sig_volcano_trace,  nonsig_volcano_trace
+
+
 
 def add_cutoff_traces(fig, pval_cutoff, FC_cutoff, row, col):
     """add cutoff traces to a plotly figure"""
