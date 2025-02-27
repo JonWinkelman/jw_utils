@@ -1,16 +1,93 @@
-def rgb_to_hex():
-    return {'rgba(132,137,145,1)':'#848991',
-                'rgb(0,208,132)':'#00d084',
-                'rgb(0,122,255)':'#007aff',
-                'rgb(171,184,195)':'#abb8c3',
-                'rgb(255,105,0)':'#ff6900',
-                'rgb(252,185,0)':'#fcb900',
-                'rgb(123,220,181)':'#7bdcb5',
-                'rgb(142,209,252)':'#8ed1fc',
-                'rgb(6,147,227)':'#0693e3',
-                'rgb(155,81,224)':'#9b51e0',
-                'rgb(207,46,46)':'#cf2e2e',
-                'rgb(247,141,167)':'#f78da7'}
+
+def write_internal_anc_node_names(leaf_names, tree):
+    """returns tree, and node_dict, with all ancestral nodes of given branches named <leafname>__anc-<depth>
+    
+    *names all ancestral nodes in tree and adds to dict
+    *replaces '_' with '-' in any leaf names because itol doesn't handle underscores well
+    """
+    node_d={name.replace('_', '-'):[] for name in leaf_names}
+    new_tree=tree.copy()
+    for leaf_name in leaf_names:
+        for cl in new_tree:
+            if cl.name==leaf_name:
+                leaf_name=leaf_name.replace('_', '-')
+                for i, anc in enumerate(cl.get_ancestors(), start=1):
+                    anc.name = leaf_name+ "-anc" + str(-i) 
+                    node_d[leaf_name].append(anc.name)
+    return new_tree, node_d
+
+
+
+def itol_highlight_lineages(node_dict, out_path, colors=None, line_type='normal', line_width=2, 
+                           label_type='bold', TYPE='branch', WHAT='node'):
+    """
+    *** use write_internal_anc_node_names() to generate tree with anc nodes labeled...
+    node_dict (dict): dict with {leaf_name:[internal_node1, internal_node2,...]}
+    
+    TYPE: can be either 'branch' or 'label'. 'branch' will apply customizations to the tree branches, while 'labels' apply to the leaf text labels
+    WHAT: can be either 'node' or 'clade', only relevant for internal tree nodes. 'Node' will apply the customization only to a single node, while 'clade' will apply to all child nodes as well.
+    COLOR: can be in hexadecimal, RGB or RGBA notation. If RGB or RGBA are used, dataset SEPARATOR cannot be comma.
+    WIDTH_OR_SIZE_FACTOR: for type 'branch', specifies the relative branch width, compared to the global branch width setting.
+                           for type 'label', specifies the relative font size, compared to the global font size
+    STYLE: for type 'branch', can be either 'normal' or 'dashed'
+            for type 'label', can be one of 'normal', 'bold', 'italic' or 'bold-italic'
+    BACKGROUND_COLOR (optional): only relevant for type 'label', specifies the color of the label background. The value is optional.
+    label_type (str): 'normal', 'bold', 'italic' or 'bold-italic'
+    """
+    s = ''
+    for l in node_dict:
+        s  = s+l+','
+    s=s.strip(',')
+    if not colors:
+        colors=['#58D68D','#F4D03F','#F5B041','#AAB7B8','#566573','#A93226','#EC7063', '#A569BD', '#5DADE2','#48C9B0'] 
+    with open(out_path, 'w') as f:
+        f.write('DATASET_STYLE\n')
+        f.write('SEPARATOR COMMA\n')
+        f.write('DATASET_LABEL,example style\n')
+        f.write(f'LEGEND_LABELS,{s}\n')
+        f.write('DATA\n')
+        for i, (leaf, lineage) in enumerate(node_dict.items()):
+            #label leaf name
+            s = f"{leaf},label,{WHAT},{colors[i]},1,{label_type}"
+            f.write(f'{s}\n')
+            for int_node in lineage:
+                int_node = int_node.replace(':', '_')
+                int_node = int_node.replace('_', ' ')
+                s=f"{int_node},{TYPE},{WHAT},{colors[i]},{line_width},{line_type}"
+                f.write(f'{s}\n')
+                
+
+# def rgb_to_hex():
+#     return {'rgba(132,137,145,1)':'#848991',
+#                 'rgb(0,208,132)':'#00d084',
+#                 'rgb(0,122,255)':'#007aff',
+#                 'rgb(171,184,195)':'#abb8c3',
+#                 'rgb(255,105,0)':'#ff6900',
+#                 'rgb(252,185,0)':'#fcb900',
+#                 'rgb(123,220,181)':'#7bdcb5',
+#                 'rgb(142,209,252)':'#8ed1fc',
+#                 'rgb(6,147,227)':'#0693e3',
+#                 'rgb(155,81,224)':'#9b51e0',
+#                 'rgb(207,46,46)':'#cf2e2e',
+#                 'rgb(247,141,167)':'#f78da7'}
+
+
+def rgba_to_hex(rgba, include_alpha=True):
+    """
+    Convert an (R, G, B, A) tuple to a HEX color string.
+
+    Parameters:
+    rgba (tuple): A tuple of (R, G, B, A), each ranging from 0-255.
+    include_alpha (bool): Whether to include the alpha channel in the HEX code.
+
+    Returns:
+    str: The HEX color string.
+    """
+    r, g, b, a = rgba
+    hex_color = "#{:02X}{:02X}{:02X}".format(r, g, b)
+    if include_alpha:
+        hex_color += "{:02X}".format(a)  # Append alpha as hex
+    return hex_color
 
 
 def make_pie_labels_dataset():
