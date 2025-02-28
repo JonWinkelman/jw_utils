@@ -7,9 +7,9 @@ import pandas as pd
 from pathlib import Path
 
 
-def full_rblast(proteome_dir, query_file,query_protein_name, 
+def full_rblast(proteome_dir, query_file, query_protein_name, 
                 reference_proteome_path, blast_db_name=None, 
-                proteomes_to_include=None, suffix='.faa'):
+                proteomes_to_include=None, suffix='.faa', recip_blast_results_dir=None):
     """
     Perform a full reciprocal BLASTp search for orthologous gene detection.
 
@@ -28,27 +28,30 @@ def full_rblast(proteome_dir, query_file,query_protein_name,
     
     if not blast_db_name:
         blast_db_name = './blast_db'
-    rblast_results_dir = './rblast_results_' + Path(query_file).stem
+    if not recip_blast_results_dir:
+        recip_blast_results_dir = './rblast_results_' + Path(query_file).stem
     make_blastp_databases(proteome_dir, blast_db_name, proteomes_to_include)
     reciprocal_blastp(blast_db_name, 
                      query_file,
-                     rblast_results_dir,
+                     recip_blast_results_dir,
                      proteome_dir, 
                      reference_proteome_path,
                      proteomes_to_include,
                      suffix
                     )
-    return get_full_best_hits_df(rblast_results_dir, query_protein_name, accession_length=15)
+    hits_df = get_full_best_hits_df(recip_blast_results_dir, query_protein_name, accession_length=15)
+    hits_df.to_csv(Path(recip_blast_results_dir) / 'recip_blast_results.csv')
+    return hits_df
 
 
-def reciprocal_blastp(database_dir, query_file, rblast_results_dir, proteome_dir, reference_proteome_path, accessions_to_include, suffix='.faa'):
+def reciprocal_blastp(database_dir, query_file, recip_blast_results_dir, proteome_dir, reference_proteome_path, accessions_to_include, suffix='.faa'):
     """
     Perform forward and reciprocal BLAST searches.
 
     Args:
         database_dir (str): Directory with individual BLAST databases.
         query_file (str): Path to initial query file.
-        rblast_results_dir (str): Directory to store BLAST results.
+        recip_blast_results_dir (str): Directory to store BLAST results.
         proteome_dir (str): Directory containing individual proteome files.
         reference_proteome_path (str): Path to reference proteome.
         accessions_to_include (list): Subset of proteomes to query.
@@ -70,22 +73,22 @@ def reciprocal_blastp(database_dir, query_file, rblast_results_dir, proteome_dir
         raise Exception(f'{len(set(proteomes).difference(databases))} proteomes not present in databases')
 
             
-    os.makedirs(rblast_results_dir, exist_ok=True)
-    forward_results_dir = os.path.join(rblast_results_dir, 'forward_blast_results')
+    os.makedirs(recip_blast_results_dir, exist_ok=True)
+    forward_results_dir = os.path.join(recip_blast_results_dir, 'forward_blast_results')
     os.makedirs(forward_results_dir, exist_ok=True)
     print(forward_results_dir)
     multi_database_query(database_dir, query_file,proteome_dir, suffix, forward_results_dir) #forward blast against each db in database dir
 
-    rblast_queries_dir = os.path.join(rblast_results_dir, 'forward_best_hits')
+    rblast_queries_dir = os.path.join(recip_blast_results_dir, 'forward_best_hits')
     write_best_hit_queries(proteome_dir, forward_results_dir, suffix, rblast_queries_dir)
     
     reference_proteome_path = str(reference_proteome_path)
     ref_db_name = reference_proteome_path.replace('.faa', '_blast_db')
     #os.makedirs('reference_db')
-    reference_db_path = os.path.join(rblast_results_dir, 'reference_db/reference_db')
+    reference_db_path = os.path.join(recip_blast_results_dir, 'reference_db/reference_db')
     print(reference_db_path)
     create_blast_database(reference_proteome_path, reference_db_path, dbtype='prot')
-    reverse_blast(rblast_queries_dir, reference_db_path, os.path.join(rblast_results_dir,'reverse_blast_results'))
+    reverse_blast(rblast_queries_dir, reference_db_path, os.path.join(recip_blast_results_dir,'reverse_blast_results'))
 
 
 
@@ -310,9 +313,9 @@ def get_blastbesthit_dict(path_to_blast_results, accession_length=13):
                     break
     return best_hits_dict
 
-def get_full_best_hits_df(rblast_results_dir, query_protein_name, accession_length=15):
-    for_dir = os.path.join(rblast_results_dir, 'forward_blast_results')
-    rev_dir = os.path.join(rblast_results_dir, 'reverse_blast_results')
+def get_full_best_hits_df(recip_blast_results_dir, query_protein_name, accession_length=15):
+    for_dir = os.path.join(recip_blast_results_dir, 'forward_blast_results')
+    rev_dir = os.path.join(recip_blast_results_dir, 'reverse_blast_results')
     forward_bbhits = get_blastbesthit_dict(for_dir, accession_length=accession_length)
     rev_bbhits = get_blastbesthit_dict(rev_dir, accession_length=accession_length)
     full_df = pd.DataFrame.from_dict(rev_bbhits, orient='index').merge(pd.DataFrame.from_dict(forward_bbhits, orient='index'), left_index=True, right_index=True)

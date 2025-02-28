@@ -147,7 +147,7 @@ def make_itol_pie_dataset(outfile_path,
     Parameters
     ----------
     outfile_path
-    count_dict : dict
+    count_dict :dict
         location can be 0 or -1, representing internal or external pie slices
         {term_node_name : [location, radius, val1, val2,...]}
     name_list (list): name for each value in the pie, must be same number of elements as the 
