@@ -79,13 +79,13 @@ def reciprocal_blastp(database_dir, query_file, rblast_results_dir, proteome_dir
     rblast_queries_dir = os.path.join(rblast_results_dir, 'forward_best_hits')
     write_best_hit_queries(proteome_dir, forward_results_dir, suffix, rblast_queries_dir)
     
-    
+    reference_proteome_path = str(reference_proteome_path)
     ref_db_name = reference_proteome_path.replace('.faa', '_blast_db')
     #os.makedirs('reference_db')
     reference_db_path = os.path.join(rblast_results_dir, 'reference_db/reference_db')
     print(reference_db_path)
     create_blast_database(reference_proteome_path, reference_db_path, dbtype='prot')
-    reverse_blast(rblast_queries_dir, reference_db_path, os.path.join(rblast_results_dir,'reciprocal_blast_results'))
+    reverse_blast(rblast_queries_dir, reference_db_path, os.path.join(rblast_results_dir,'reverse_blast_results'))
 
 
 
@@ -128,8 +128,10 @@ def make_blastp_databases(proteome_dir, out_dir, proteomes_to_include=None, dbty
         proteomes_to_include = [Path(proteome).stem for proteome in os.listdir(proteome_dir)]
 
     for acc in proteomes_to_include:
+        acc=str(acc)
         proteome_path = f'{proteome_dir}/{acc}.faa'
         db_name = f"{acc}_db"
+        
         out = os.path.join(out_dir, acc, db_name)
 
         os.makedirs(os.path.dirname(out), exist_ok=True)
@@ -310,7 +312,7 @@ def get_blastbesthit_dict(path_to_blast_results, accession_length=13):
 
 def get_full_best_hits_df(rblast_results_dir, query_protein_name, accession_length=15):
     for_dir = os.path.join(rblast_results_dir, 'forward_blast_results')
-    rev_dir = os.path.join(rblast_results_dir, 'reciprocal_blast_results')
+    rev_dir = os.path.join(rblast_results_dir, 'reverse_blast_results')
     forward_bbhits = get_blastbesthit_dict(for_dir, accession_length=accession_length)
     rev_bbhits = get_blastbesthit_dict(rev_dir, accession_length=accession_length)
     full_df = pd.DataFrame.from_dict(rev_bbhits, orient='index').merge(pd.DataFrame.from_dict(forward_bbhits, orient='index'), left_index=True, right_index=True)

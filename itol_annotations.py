@@ -90,9 +90,6 @@ def rgba_to_hex(rgba, include_alpha=True):
     return hex_color
 
 
-def make_pie_labels_dataset():
-    """"""
-
 
 def _make_field_labels(name_list):
     """return itol line with field labels pulled from from name list"""
@@ -150,11 +147,30 @@ def make_itol_pie_dataset(outfile_path,
     Parameters
     ----------
     outfile_path
-    name_list (list): name for each value in the pie, must be same number of elements as the 
-                      number of values in the pie, e.g 2[location, radius, val1, val2,...]
-    data_dict :dict
-        location can == 0 or -1, internal or external
+    count_dict : dict
+        location can be 0 or -1, representing internal or external pie slices
         {term_node_name : [location, radius, val1, val2,...]}
+    name_list (list): name for each value in the pie, must be same number of elements as the 
+                      number of *values* in the pie, e.g. 2 names for val1 and val2 
+                      in the count_dict {leaf_name1:[location, radius, *val1*, *val2*], ...}
+
+
+    DATA:
+    #the following fields are required for each node:
+    #ID,position,radius,value1,value2,value3...
+    #position defines the position of the pie chart on the tree:
+    #  -1 = external pie chart
+    #  a number between 0 and 1 = internal pie chart positioned at the specified value along the node branch (for example, position 0 is exactly at the start of node
+    branch, position 0.5 is in the middle, and position 1 is at the end)
+    DATA
+    #Examples
+    
+    # node 9606 will have an external pie chart
+    # 9606,-1,10,10000,15000,9000
+    
+    # node 9123 will have an internal pie chart directly over the node, and with radius 50 
+    # (actual display radius will depend on other values in the dataset and the MAXIMUM_SIZE specified)
+    #9132,0,50,11000,9000,120007
     """
     
     if not hexcolors:
