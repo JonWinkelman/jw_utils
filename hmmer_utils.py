@@ -135,26 +135,67 @@ def run_hmm_alignment(db_fp, seqs_fp, hmm_id, output_fp,
 
 
 
-def run_simple_hmm_alignment(seqs_fp, hmm_fp, output_fp, 
-                      output_format='Stockholm', trim=False):
+import subprocess
+
+def run_simple_hmm_alignment(seqs_fp, hmm_fp, output_fp, output_format='Stockholm', trim=False):
     """
-    Aligns sequences using hmmalign
+    Aligns sequences using hmmalign.
 
     Parameters:
     seqs_fp (str): Filepath to the FASTA file containing the sequences to be aligned.
-    hmm_id (str): ID of the HMM profile to fetch from the database.
+    hmm_fp (str): Filepath to the HMM profile.
     output_fp (str): Filepath where the aligned sequences will be saved.
     output_format (str): Format of the output alignment (e.g., 'Stockholm', 'Pfam', 'A2M', 'PSIBLAST').
+    trim (bool): Whether to enable trimming in hmmalign.
 
     Returns:
     None: Writes output to a file specified by output_fp.
     """
-    align_cmd = ['hmmalign', '--outformat', output_format] 
+    align_cmd = ['hmmalign', '--outformat', output_format]
+
     if trim:
         align_cmd.append('--trim')
-    align_cmd = align_cmd + ['-o', output_fp, hmm_fp, seqs_fp]
+    
+    align_cmd += ['-o', output_fp, hmm_fp, seqs_fp]
+    
+    print(f'Executing command: {" ".join(align_cmd)}')
 
-    subprocess.run(align_cmd, shell=True)
+    try:
+        subprocess.run(align_cmd, check=True)  # Run command safely
+    except subprocess.CalledProcessError as e:
+        print(f"Error running hmmalign: {e}")
+
+
+
+# import subprocess
+
+# def run_simple_hmm_alignment(seqs_fp, hmm_fp, output_fp, trim=False):
+#     """
+#     Aligns sequences using hmmalign.
+
+#     Parameters:
+#     seqs_fp (str): Filepath to the FASTA file containing the sequences to be aligned.
+#     hmm_fp (str): Filepath to the HMM profile.
+#     output_fp (str): Filepath where the aligned sequences will be saved.
+#     trim (bool): Whether to enable trimming in hmmalign.
+
+#     Returns:
+#     None: Writes output to a file specified by output_fp.
+#     """
+#     align_cmd = ['hmmalign']
+#     if trim:
+#         align_cmd.append('--trim')
+    
+#     align_cmd += ['-o', output_fp, hmm_fp, seqs_fp]
+    
+#     print(f'Executing command: {" ".join(align_cmd)}')
+
+#     try:
+#         subprocess.run(align_cmd, check=True)  # Remove `shell=True`
+#     except subprocess.CalledProcessError as e:
+#         print(f"Error running hmmalign: {e}")
+
+
 
 
 
