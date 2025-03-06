@@ -7,6 +7,34 @@ import numpy as np
 import math
 
 
+
+def sort_by_column_character_frequency(seq_dict, column):
+    """
+    Sorts a dictionary of aligned sequences based on the most common character 
+    in a specified column. Sequences containing the most common character in 
+    that column appear at the top, and those with the least common character appear at the bottom.
+
+    Parameters:
+    seq_dict (dict): Dictionary with {seq_id: aligned_sequence} pairs.
+    column (int): Column index to analyze.
+
+    Returns:
+    dict: Sorted dictionary with sequences ordered by column character frequency.
+    """
+
+    # Extract characters at the given column for all sequences
+    column_chars = [seq[column] for seq in seq_dict.values() if len(seq) > column]
+
+    # Count occurrences of each character
+    char_counts = Counter(column_chars)
+
+    # Sort sequences by frequency of their character in the given column
+    sorted_items = sorted(seq_dict.items(), key=lambda x: char_counts.get(x[1][column], 0), reverse=True)
+
+    # Return sorted dictionary
+    return dict(sorted_items)
+
+
 def calculate_entropy(alignment_input, file_format="fasta", ignore_gaps=True):
     """
     Calculate Shannon entropy at each position in a multiple sequence alignment.

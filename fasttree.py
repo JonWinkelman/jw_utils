@@ -1,4 +1,5 @@
 from pathlib import Path
+import subprocess
 
 def run_fasttree(input_fasta, output_tree, **kwargs):
     """

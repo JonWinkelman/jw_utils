@@ -137,7 +137,7 @@ def run_hmm_alignment(db_fp, seqs_fp, hmm_id, output_fp,
 
 import subprocess
 
-def run_simple_hmm_alignment(seqs_fp, hmm_fp, output_fp, output_format='Stockholm', trim=False):
+def run_simple_hmm_alignment(seqs_fp, hmm_fp, output_fp, output_format='Pfam', trim=False):
     """
     Aligns sequences using hmmalign.
 
@@ -151,6 +151,7 @@ def run_simple_hmm_alignment(seqs_fp, hmm_fp, output_fp, output_format='Stockhol
     Returns:
     None: Writes output to a file specified by output_fp.
     """
+
     align_cmd = ['hmmalign', '--outformat', output_format]
 
     if trim:
@@ -167,33 +168,6 @@ def run_simple_hmm_alignment(seqs_fp, hmm_fp, output_fp, output_format='Stockhol
 
 
 
-# import subprocess
-
-# def run_simple_hmm_alignment(seqs_fp, hmm_fp, output_fp, trim=False):
-#     """
-#     Aligns sequences using hmmalign.
-
-#     Parameters:
-#     seqs_fp (str): Filepath to the FASTA file containing the sequences to be aligned.
-#     hmm_fp (str): Filepath to the HMM profile.
-#     output_fp (str): Filepath where the aligned sequences will be saved.
-#     trim (bool): Whether to enable trimming in hmmalign.
-
-#     Returns:
-#     None: Writes output to a file specified by output_fp.
-#     """
-#     align_cmd = ['hmmalign']
-#     if trim:
-#         align_cmd.append('--trim')
-    
-#     align_cmd += ['-o', output_fp, hmm_fp, seqs_fp]
-    
-#     print(f'Executing command: {" ".join(align_cmd)}')
-
-#     try:
-#         subprocess.run(align_cmd, check=True)  # Remove `shell=True`
-#     except subprocess.CalledProcessError as e:
-#         print(f"Error running hmmalign: {e}")
 
 
 
@@ -205,7 +179,8 @@ def run_simple_hmm_alignment(seqs_fp, hmm_fp, output_fp, output_format='Stockhol
 
 def clean_up_hmmalignment(hmm_alignment_fp):
     """removes non-sequence lines from hmm stockholm output.
-    returns (dict)
+    
+    returns (dict): standard sequence alignment dictionary
     """
     new_aln = []
     new_aln_d = {}
