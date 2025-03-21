@@ -99,10 +99,6 @@ def ThreadPool_hmm_search(hmm_db, output_dir, prot_name_fp_d, threads = 6):
                                    hmm_db, 
                                    output_dir) for  proteome_name, proteome_fp in prot_name_fp_d.items()]
 
-    # Wait for all futures to complete
-    for future in futures:
-        print(future.result())
-
 
 
 
@@ -487,7 +483,9 @@ def run_fasttree(input_fasta, output_tree, **kwargs):
 
 
 
-def make_bac120_tree(hmm_profile_dir, proteome_dir_fp, proteome_suffix='.faa'):
+def make_bac120_tree(hmm_profile_dir, proteome_dir_fp, proteome_suffix='.faa',
+                     output_tree='results/bac120_tree.nwk', log="results/bac120tree_logfile.txt",
+                    concat_fasta = './results/concatenated_alignment.fasta', fasta_dir = './results/hmm_alignments'):
     """
     Takes a list of HMM profiles, extracts the best hit from each proteome aligns, concatenates, and builds tree.
     
@@ -518,20 +516,21 @@ def make_bac120_tree(hmm_profile_dir, proteome_dir_fp, proteome_suffix='.faa'):
 
     print("Extracting protein sequences for each HMM from each proteome and writing FASTA files...")
     extract_bac120_proteins(prot_name_fp_d, dfs, output_dir='./results/bac120_proteins')
-    hmm_alignments = './results/hmm_alignments'
-    bac120_proteins = './results/bac120_proteins'
-    os.makedirs(hmm_alignments, exist_ok=True)
+    hmm_alignments = Path('./results/hmm_alignments')
+    bac120_proteins = Path('./results/bac120_proteins')
+    hmm_alignments.mkdir(exist_ok=True, parents=True)
+    bac120_proteins.mkdir(exist_ok=True, parents=True)
     pres_abs_df = create_hmm_seq_files(prot_name_fp_d, hmm_bac120_ids, bac120_proteins, hmm_alignments)
 
     print(f'for each hmm, aligning all extracted proteins with that hmm')
     sto_fps =  run_hmm_alignments(hmm_bac120_ids, hmm_db, hmm_alignments)
     simple_aln_fps = process_hmm_alignments(sto_fps)
 
-    fasta_dir = './results/hmm_alignments'
-    output_fasta = './results/concatenated_alignment.fasta'
-    print(f'For each proteome, concatenating all hmm-aligned proteins into one long protein and saving as {output_fasta}')
-    process_concatenated_alignment(names=list(prot_name_fp_d.keys()), remove=[], fasta_dir=fasta_dir, output_fasta=output_fasta)
+    concat_fasta = Path(concat_fasta)
+    concat_fasta.parent.mkdir(exist_ok=True, parents=True)
+    print(f'For each proteome, concatenating all hmm-aligned proteins into one long protein and saving as {concat_fasta}')
+    process_concatenated_alignment(names=list(prot_name_fp_d.keys()), remove=[], fasta_dir=fasta_dir, output_fasta=concat_fasta)
     
     print(f'generating maximum likelihood tree using fasttree from concatenated protein sequences...')
-    run_fasttree(input_fasta='results/concatenated_alignment.fasta', output_tree='results/bac120_tree.nwk', log="results/bac120tree_logfile.txt")
+    run_fasttree(input_fasta=concat_fasta, output_tree=output_tree, log=log)
     return pres_abs_df
