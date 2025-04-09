@@ -18,6 +18,14 @@ colors = ['rgba(132,137,145,1)',
 'rgb(247,141,167)',
 ]
 
+def rgba_to_hex(r, g, b, a=1.0):
+    a_int = round(a * 255)
+    return f'#{r:02X}{g:02X}{b:02X}{a_int:02X}'
+
+def rgb_to_hex(r, g, b):
+    return f'#{r:02X}{g:02X}{b:02X
+
+
 def interpolate_colorscale(colorscale_name='earth', n=20, return_swatch_fig=False):
     """
     Interpolates a Plotly colorscale to have `n` equally spaced colors.
