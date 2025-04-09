@@ -484,8 +484,7 @@ def run_fasttree(input_fasta, output_tree, **kwargs):
 
 
 def make_bac120_tree(hmm_profile_dir, proteome_dir_fp, proteome_suffix='.faa',
-                     output_tree='results/bac120_tree.nwk', log="results/bac120tree_logfile.txt",
-                    concat_fasta = './results/concatenated_alignment.fasta', fasta_dir = './results/hmm_alignments'):
+                     output_tree='results/bac120_tree/bac120_tree.nwk'):
     """
     Takes a list of HMM profiles, extracts the best hit from each proteome aligns, concatenates, and builds tree.
     
@@ -494,40 +493,57 @@ def make_bac120_tree(hmm_profile_dir, proteome_dir_fp, proteome_suffix='.faa',
     
     """
     
+    # filepaths
+    hmm_profile_dir = Path(hmm_profile_dir)
+    proteome_dir_fp = Path(proteome_dir_fp)
+    output_tree = Path(output_tree)
+    parent_dir = output_tree.parent
+    log = parent_dir / 'bac120tree_logfile.txt'
+    concat_fasta = parent_dir / 'concatenated_alignment.fasta'
+    hmm_db  = parent_dir / 'bac120hmm_db/concat_bac120_profiles.hmm'
+    
+    # dirs to make
+    fasta_dir = parent_dir / 'hmm_alignments'
+    hmm_output_dir = parent_dir / 'hmm_search_output/'
+    bac_120_extacted_proteins_dir = parent_dir / 'bac_120_extacted_proteins'
+    hmm_alignments_dir = parent_dir / 'hmm_alignments'
+
+    if parent_dir.exists():
+        raise Exception(f'"{parent_dir}" already exists, rename or delete if you want to run this function')
+    
+    for path in [parent_dir, fasta_dir, hmm_output_dir, hmm_db.parent, bac_120_extacted_proteins_dir, hmm_alignments_dir]:
+        path.mkdir(exist_ok=True, parents=True)
+    
     prot_name_fp_d = {f.strip(proteome_suffix).strip('.'):os.path.join(proteome_dir_fp, f ) for f in os.listdir(proteome_dir_fp) if f.endswith(proteome_suffix)}
-    hmm_bac120_ids = [f.replace('.HMM', '') for f in os.listdir(hmm_profile_dir) if f.endswith('HMM')]
-    os.makedirs('results', exist_ok=True)
+    hmm_bac120_ids = [f.stem for f in hmm_profile_dir.glob('*.HMM')]
     if len(hmm_bac120_ids) < 1:
         raise Exception(f'are you sure files in {hmm_profile_dir} are present and formatted correctly? e.g. do the end with ".HMM"?')
     
     print("concatenating HMM profiles into one file and then pressing it into binary...")
-    process_hmm_profiles(hmm_profile_dir,output_file='./results/bac120hmm_db/concat_bac120_profiles.hmm', 
+
+    process_hmm_profiles(hmm_profile_dir, output_file= hmm_db, 
                          run_concatenation=True)
 
     
     print("searching each proteome with each HMM using hmmsearch...")
-    hmm_db = './results/bac120hmm_db/concat_bac120_profiles.hmm'
-    hmm_output_dir = './results/hmm_search_output/'
-    os.makedirs(hmm_output_dir, exist_ok=True)
-    ThreadPool_hmm_search(hmm_db, hmm_output_dir, prot_name_fp_d, threads=6)
+    ThreadPool_hmm_search(str(hmm_db), str(hmm_output_dir), prot_name_fp_d, threads=6)
     
     print("aggregating best hit from each proteome into dataframe...")
     dfs = aggregate_best_hits(prot_name_fp_d, hmm_output_dir)
 
     print("Extracting protein sequences for each HMM from each proteome and writing FASTA files...")
-    extract_bac120_proteins(prot_name_fp_d, dfs, output_dir='./results/bac120_proteins')
-    hmm_alignments = Path('./results/hmm_alignments')
-    bac120_proteins = Path('./results/bac120_proteins')
-    hmm_alignments.mkdir(exist_ok=True, parents=True)
-    bac120_proteins.mkdir(exist_ok=True, parents=True)
-    pres_abs_df = create_hmm_seq_files(prot_name_fp_d, hmm_bac120_ids, bac120_proteins, hmm_alignments)
+    
+    extract_bac120_proteins(prot_name_fp_d, dfs, output_dir=bac_120_extacted_proteins_dir)
+    
+    
+
+    
+    pres_abs_df = create_hmm_seq_files(prot_name_fp_d, hmm_bac120_ids, bac_120_extacted_proteins_dir, hmm_alignments_dir)
 
     print(f'for each hmm, aligning all extracted proteins with that hmm')
-    sto_fps =  run_hmm_alignments(hmm_bac120_ids, hmm_db, hmm_alignments)
+    sto_fps =  run_hmm_alignments(hmm_bac120_ids, hmm_db, hmm_alignments_dir)
     simple_aln_fps = process_hmm_alignments(sto_fps)
 
-    concat_fasta = Path(concat_fasta)
-    concat_fasta.parent.mkdir(exist_ok=True, parents=True)
     print(f'For each proteome, concatenating all hmm-aligned proteins into one long protein and saving as {concat_fasta}')
     process_concatenated_alignment(names=list(prot_name_fp_d.keys()), remove=[], fasta_dir=fasta_dir, output_fasta=concat_fasta)
     
