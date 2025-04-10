@@ -1,3 +1,6 @@
+from pathlib import Path
+from typing import List, Dict, Optional, Union, Tuple
+
 
 def write_internal_anc_node_names(leaf_names, tree):
     """returns tree, and node_dict, with all ancestral nodes of given branches named <leafname>__anc-<depth>
@@ -354,29 +357,100 @@ def make_itol_binary_trait_dataset(outfile_path, count_dict, name_list, dataset_
             f.write(line+'\n')
 
 
-def make_itol_colorstrip_dataset(outfile_path, data_lists, dataset_label='Phyla',
-                                     dataset_label_color='#848991', color_branches=1, strip_width=25,
-                                     legend_title='legend title', hexcolors=None, **kwargs):
+# def make_itol_colorstrip_dataset(outfile_path, data_lists, dataset_label='Phyla',
+#                                      dataset_label_color='#848991', color_branches=1, strip_width=25,
+#                                      legend_title='legend title', hexcolors=None, **kwargs):
+#     """
+#     make bargraph template for itol dataset adn write to file.
+
+#     Parameters
+#     ----------
+#     outfile_path   : (str)
+#     data_lists     : list of f strings, with each word separated by a space. First
+#                      word corresponds to the name of the internal node, second is the color (must be a hexcolor)
+#                      of colorstrip and branches, third is the displayed name.
+#                     [f'{node_name} {hex_color} {strip label}', fstring2, fstring3, ...]
+#     color_branches : (int) 0 or 1. Determines whether branches descending from named nodes will be colored.
+#     strip_width    : (int)  Width of the annotation strip displaying node name
+    
+
+#     """
+#     def deduplicate_in_order(items):
+#         return list(dict.fromkeys(items))
+    
+#     if not hexcolors:
+#         hexcolors = ['#58D68D','#F4D03F','#F5B041','#AAB7B8','#566573','#A93226','#EC7063', '#A569BD', '#5DADE2','#48C9B0']
+
+#     with open(outfile_path, 'w') as f:
+#         f.write('DATASET_COLORSTRIP\n')
+#         f.write('SEPARATOR SPACE\n')
+#         f.write(f'DATASET_LABEL {dataset_label}\n')
+#         f.write(f'COLOR {dataset_label_color}\n')
+#         f.write(f'COLOR_BRANCHES {color_branches}\n')
+#         f.write(f'LEGEND_TITLE {legend_title}\n')
+
+#         labels = [fstring.split(' ')[2] for fstring in data_lists]
+#         colors = [fstring.split(' ')[1] for fstring in data_lists]
+#         labels = deduplicate_in_order(labels)
+#         colors = deduplicate_in_order(colors)
+#         default_shapes = ' '.join([str(1) for _ in range(len(labels))])
+#         legend_shapes = kwargs.get('legend_shapes', default_shapes)
+#         label_string = ' '.join(list(labels))
+#         color_string = ' '.join(list(colors))
+#         f.write(f'LEGEND_SHAPES {legend_shapes}\n')
+#         f.write(f'LEGEND_LABELS {label_string}\n')
+#         f.write(f'LEGEND_COLORS {color_string}\n')
+#         f.write(f'STRIP_WIDTH {strip_width}\n')
+        
+#         f.write('DATA\n')
+#         for annot_line in data_lists:
+#             f.write(annot_line+'\n')
+
+def make_itol_colorstrip_dataset(
+    outfile_path: Union[str, Path],
+    data: List[Dict[str, str]],
+    dataset_label: str = 'Phyla',
+    dataset_label_color: str = '#848991',
+    color_branches: int = 0,
+    strip_width: int = 25,
+    legend_title: str = 'Legend',
+):
     """
-    make bargraph template for itol dataset adn write to file.
+    Write an iTOL color strip annotation file from structured data.
 
     Parameters
     ----------
-    outfile_path   : (str)
-    data_lists     : list of f strings, with each word separated by a space. First
-                     word corresponds to the name of the internal node, second is the color (must be a hexcolor)
-                     of colorstrip and branches, third is the displayed name.
-                    [f'{node_name} {hex_color} {strip label}', fstring2, fstring3, ...]
-    color_branches : (int) 0 or 1. Determines whether branches descending from named nodes will be colored.
-    strip_width    : (int)  Width of the annotation strip displaying node name
-    
-
+    outfile_path : Path or str
+        Path to output annotation file.
+    data : list of dicts
+        Each dict should contain:
+            - 'node': node name (str)
+            - 'color': hex color (e.g., '#FF0000')
+            - 'label': label for strip and legend
+            - 'shape': legend shape code (e.g., '1' for square)
+            e.g.
+            data = [
+                    {'node': 'NodeA', 'label': 'Proteobacteria', 'color': '#FF0000', 'shape': '1'},
+                    {'node': 'NodeB', 'label': 'Firmicutes', 'color': '#00FF00', 'shape': '2'},
+                    {'node': 'NodeC', 'label': 'Actinobacteria', 'color': '#0000FF', 'shape': '3'},
+                    {'node': 'NodeD', 'label': 'Firmicutes', 'color': '#00FF00', 'shape': '2'},
+                    ]
     """
-    def deduplicate_in_order(items):
-        return list(dict.fromkeys(items))
-    
-    if not hexcolors:
-        hexcolors = ['#58D68D','#F4D03F','#F5B041','#AAB7B8','#566573','#A93226','#EC7063', '#A569BD', '#5DADE2','#48C9B0']
+    outfile_path = Path(outfile_path)
+
+    def dedup_in_order(items: List[Tuple]) -> List[Tuple]:
+        seen = set()
+        out = []
+        for item in items:
+            if item not in seen:
+                out.append(item)
+                seen.add(item)
+        return out
+
+    # Deduplicate legend entries by (label, color, shape)
+    legend_entries = dedup_in_order([
+        (entry['label'], entry['color'], entry.get('shape', '1')) for entry in data
+    ])
 
     with open(outfile_path, 'w') as f:
         f.write('DATASET_COLORSTRIP\n')
@@ -385,20 +459,10 @@ def make_itol_colorstrip_dataset(outfile_path, data_lists, dataset_label='Phyla'
         f.write(f'COLOR {dataset_label_color}\n')
         f.write(f'COLOR_BRANCHES {color_branches}\n')
         f.write(f'LEGEND_TITLE {legend_title}\n')
-
-        labels = [fstring.split(' ')[2] for fstring in data_lists]
-        colors = [fstring.split(' ')[1] for fstring in data_lists]
-        labels = deduplicate_in_order(labels)
-        colors = deduplicate_in_order(colors)
-        default_shapes = ' '.join([str(1) for _ in range(len(labels))])
-        legend_shapes = kwargs.get('legend_shapes', default_shapes)
-        label_string = ' '.join(list(labels))
-        color_string = ' '.join(list(colors))
-        f.write(f'LEGEND_SHAPES {legend_shapes}\n')
-        f.write(f'LEGEND_LABELS {label_string}\n')
-        f.write(f'LEGEND_COLORS {color_string}\n')
+        f.write(f'LEGEND_SHAPES {" ".join(entry[2] for entry in legend_entries)}\n')
+        f.write(f'LEGEND_LABELS {" ".join(entry[0] for entry in legend_entries)}\n')
+        f.write(f'LEGEND_COLORS {" ".join(entry[1] for entry in legend_entries)}\n')
         f.write(f'STRIP_WIDTH {strip_width}\n')
-        
         f.write('DATA\n')
-        for annot_line in data_lists:
-            f.write(annot_line+'\n')
+        for entry in data:
+            f.write(f"{entry['node']} {entry['color']} {entry['label']}\n")
