@@ -414,6 +414,12 @@ def make_itol_colorstrip_dataset(
     color_branches: int = 0,
     strip_width: int = 25,
     legend_title: str = 'Legend',
+    margin: int = 15, 
+    border_width: int = 0, 
+    border_color: str = "#0000ff", 
+    show_strip_labels: int = 0,
+    strip_label_position: str = 'center', 
+  
 ):
     """
     Write an iTOL color strip annotation file from structured data.
@@ -463,6 +469,11 @@ def make_itol_colorstrip_dataset(
         f.write(f'LEGEND_LABELS {" ".join(entry[0] for entry in legend_entries)}\n')
         f.write(f'LEGEND_COLORS {" ".join(entry[1] for entry in legend_entries)}\n')
         f.write(f'STRIP_WIDTH {strip_width}\n')
+        f.write(f'MARGIN {margin}\n')
+        f.write(f'BORDER_WIDTH {border_width}\n')
+        f.write(f'BORDER_COLOR {border_color}\n')
+        f.write(f'SHOW_STRIP_LABELS {show_strip_labels}\n')
+        f.write(f'STRIP_LABEL_POSITION {strip_label_position}\n')
         f.write('DATA\n')
         for entry in data:
             f.write(f"{entry['node']} {entry['color']} {entry['label']}\n")
