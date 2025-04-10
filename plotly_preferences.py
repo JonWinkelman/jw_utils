@@ -22,8 +22,12 @@ def rgba_to_hex(r, g, b, a=1.0):
     a_int = round(a * 255)
     return f'#{r:02X}{g:02X}{b:02X}{a_int:02X}'
 
-def rgb_to_hex(r, g, b):
-    return f'#{r:02X}{g:02X}{b:02X
+def rgb_to_hex(rgb_value = 'rgb(100,200,255)'):
+    r,g,b = rgb_value.strip('rgb(').strip(')').split(',')
+    r=int(r)
+    g=int(g)
+    b=int(b)
+    return f'#{r:02X}{g:02X}{b:02X}'
 
 
 def interpolate_colorscale(colorscale_name='earth', n=20, return_swatch_fig=False):
