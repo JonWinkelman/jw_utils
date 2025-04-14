@@ -5,6 +5,32 @@ import json
 import pandas as pd
 import tempfile
 import shutil
+from pathlib import Path
+
+def copy_ncbi_files(ncbi_data_dir, dest_dir, suffix = '.faa'):
+    """Copies internal files from a ncbi data dir to a given dir
+    
+   
+   Assumptions:
+   1) path to proteome is <ncbi_data_dir>/GC#_#########.d/protein.faa
+   2) proteome ends in .faa, renames stem to <accession>.faa
+   3) internal dirs start with 'GC'
+    """
+    ncbi_data_dir = Path(ncbi_data_dir)
+    dest_dir = Path(dest_dir)
+    for dir in [f for f in ncbi_data_dir.glob('GC*')]:
+        #copy each proteome from dataset to ./data/Proteomes
+        suffix = suffix.strip('.')
+        src_fp = dir / f'protein.{suffix}'
+        if src_fp.exists():
+            dest_fp = dest_dir / f'{dir.name}.{suffix}'
+            print(dest_fp)
+            shutil.copy(src_fp,dest_fp)
+        else:
+            print(f'source file "{src_fp}" does not exist!')
+
+
+
 def download_genomes_from_accfile(accessions_fp, files_to_include, dataset_fp):
     """Download ncbi datasets genomes from input file containing accessions.
 
