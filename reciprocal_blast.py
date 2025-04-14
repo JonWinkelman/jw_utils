@@ -77,7 +77,7 @@ def reciprocal_blastp(database_dir, query_file, recip_blast_results_dir, proteom
     forward_results_dir = os.path.join(recip_blast_results_dir, 'forward_blast_results')
     os.makedirs(forward_results_dir, exist_ok=True)
     print(forward_results_dir)
-    multi_database_query(database_dir, query_file,proteome_dir, suffix, forward_results_dir) #forward blast against each db in database dir
+    multi_database_query(database_dir, query_file, proteome_dir, suffix, forward_results_dir) #forward blast against each db in database dir
 
     rblast_queries_dir = os.path.join(recip_blast_results_dir, 'forward_best_hits')
     write_best_hit_queries(proteome_dir, forward_results_dir, suffix, rblast_queries_dir)
