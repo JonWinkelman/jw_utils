@@ -9,7 +9,8 @@ from pathlib import Path
 
 def full_rblast(proteome_dir, query_file, query_protein_name, 
                 reference_proteome_path, blast_db_name=None, 
-                proteomes_to_include=None, suffix='.faa', recip_blast_results_dir=None):
+                proteomes_to_include=None, suffix='.faa', recip_blast_results_dir=None,
+               make_blast_db=True):
     """
     Perform a full reciprocal BLASTp search for orthologous gene detection.
 
@@ -30,7 +31,8 @@ def full_rblast(proteome_dir, query_file, query_protein_name,
         blast_db_name = './blast_db'
     if not recip_blast_results_dir:
         recip_blast_results_dir = './rblast_results_' + Path(query_file).stem
-    make_blastp_databases(proteome_dir, blast_db_name, proteomes_to_include)
+    if make_blast_db:
+        make_blastp_databases(proteome_dir, blast_db_name, proteomes_to_include)
     reciprocal_blastp(blast_db_name, 
                      query_file,
                      recip_blast_results_dir,
