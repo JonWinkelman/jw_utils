@@ -11,6 +11,14 @@ from plotly import graph_objects as go
 import plotly.offline as pyo
 
 
+
+def make_jitterplot_trace(xval_loc, yvals, spread=0.1, name=''):
+    """"""
+    xvals = np.random.normal(xval_loc,scale=spread, size=len(yvals))
+    return go.Scatter(x=xvals, y=yvals, mode='markers', name=name)
+    
+    
+
 def plot_bar_with_outliers(series, name=None, end=100):
     """
     make a plotly 'histogram' with all values greater than 'end' binned into one bar
