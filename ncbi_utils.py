@@ -16,18 +16,23 @@ def copy_ncbi_files(ncbi_data_dir, dest_dir, suffix = '.faa'):
    2) proteome ends in .faa, renames stem to <accession>.faa
    3) internal dirs start with 'GC'
     """
+    proteomes_copied = []
     ncbi_data_dir = Path(ncbi_data_dir)
     dest_dir = Path(dest_dir)
     for dir in [f for f in ncbi_data_dir.glob('GC*')]:
         #copy each proteome from dataset to ./data/Proteomes
         suffix = suffix.strip('.')
-        src_fp = dir / f'protein.{suffix}'
+        src_fp = [f for f in dir.glob(f'*{suffix}')]
+        if len(src_fp) > 1:
+            raise Exception(f'{len(src_fp)} fasta files with the suffix {suffix} were found')
+        src_fp = src_fp[0]
         if src_fp.exists():
             dest_fp = dest_dir / f'{dir.name}.{suffix}'
-            print(dest_fp)
             shutil.copy(src_fp,dest_fp)
+            proteomes_copied.append(dest_fp.name)
         else:
             print(f'source file "{src_fp}" does not exist!')
+    return proteomes_copied
 
 
 
