@@ -66,6 +66,8 @@ def make_full_seq_obj_dict(path_to_gff):
 
 def _make_attribut_dict(gff_line):
     """return a dict of attributes parsed from a NCBI-formatted gff3 line"""
+    
+    gff_line = gff_line.strip(';\n')
     attr_list = gff_line.split('\t')[-1].split(';') #list of ['key=val','key=val','key2=val2',...]
     temp = [key_val.split('=') for key_val in attr_list]
     return {key_val[0]:key_val[1].strip() for key_val in temp}
@@ -350,6 +352,52 @@ def change_gff_attribute(path_to_gff, feature_val_dict, attribute, new_file_path
         with open(new_file_path, 'w') as f:
             for line in lines:
                 f.write(line)
+
+
+
+
+### newer ###############
+from dataclasses import dataclass
+
+@dataclass
+class Feature:
+    ID: str
+    parent: str
+    feature_type: str
+    start: int
+    end: int
+    strand: str
+    attributes: dict
+
+def parse_gff(path, feature_type='gene'):
+    feature_dict = {}
+    with open(path, 'r') as f:
+        for line in f:
+            if line.startswith('#') or line.strip() == '':
+                continue
+            fields = line.strip().split('\t')
+            if len(fields) < 9:
+                continue  # skip bad lines
+            if feature_type != 'all' and fields[2] != feature_type:
+                continue
+
+            attr_dict = {kv.split('=')[0]: kv.split('=')[1] for kv in fields[8].split(';') if '=' in kv}
+            feature_id = attr_dict.get('ID')
+            if not feature_id:
+                continue  # skip features without ID
+
+            feature = Feature(
+                ID=feature_id,
+                parent=attr_dict.get('Parent'),
+                feature_type=fields[2],
+                start=int(fields[3]),
+                end=int(fields[4]),
+                strand=fields[6],
+                attributes=attr_dict
+            )
+            feature_dict[feature_id] = feature
+    return feature_dict
+
 
 
 if __name__ == '__main__':
