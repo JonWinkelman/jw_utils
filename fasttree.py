@@ -20,6 +20,15 @@ def run_fasttree(input_fasta, output_tree, **kwargs):
     # Base command
     cmd = ["fasttree"]
 
+    # Detect “help” request
+    if kwargs.pop("help", False) or kwargs.pop("h", False):
+        cmd = ["fasttree", "-help"]
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        # FastTree may print help to stderr instead of stdout:
+        help_text = result.stdout or result.stderr
+        print(help_text)
+        return help_text
+
     # Add user-defined flags
     for flag, value in kwargs.items():
         if isinstance(value, bool):  # Flags that are just toggles
@@ -46,3 +55,6 @@ def run_fasttree(input_fasta, output_tree, **kwargs):
     except subprocess.CalledProcessError as e:
         print(f"Error running FastTree: {e.stderr}")
         return None
+
+
+
