@@ -5,7 +5,64 @@ from Bio.Phylo.TreeConstruction import DistanceCalculator, DistanceMatrix
 from Bio import AlignIO
 import numpy as np
 import math
+import subprocess
+import tempfile
+import os
+from jw_utils import parse_fasta as pfa
 
+def run_muscle(inp, output_fp, mode='align', muscle_path='muscle', **kwargs):
+    """
+    Run MUSCLE v5 alignment using either -align or -super5.
+
+    Parameters:
+    - inp (str): Path to input FASTA file or a dict {seqname1:seq1, seqname2:seq2,...}
+    - output_fp (str): Path to output aligned FASTA file
+    - mode (str): 'align' or 'super5'
+    - muscle_path (str): Path to the MUSCLE binary (default: 'muscle')
+    - **kwargs: Additional MUSCLE flags (e.g., -perm, -perturb)
+
+    usage example 1: run_muscle("input.fa", "output.aln", mode='super5')
+    usage example 2: run_muscle("input.fa", "output.aln", mode='align', **{'-perm': 'abc', '-perturb': '1'})
+    usage example 3: run_muscle(None, None, **{'-h': None})
+        If '-h' is passed as a keyword, help is printed and the function exits.
+    
+
+    """
+    if type(inp) != dict:
+        inp = str(inp)
+        output_fp = str(output_fp)
+        tmp_path = None
+    else:
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            tmp_path = tmp.name   
+        pfa.write_to_fasta(inp, tmp_path)
+        inp = tmp_path
+    try:  
+        if '-h' in kwargs:
+            subprocess.run([muscle_path, '-h'])
+            return
+    
+        if mode not in ['align', 'super5']:
+            raise ValueError("Mode must be either 'align' or 'super5'")
+    
+        cmd = [muscle_path, f'-{mode}', inp, '-output', output_fp]
+    
+        for key, value in kwargs.items():
+            if key != '-h':  # already handled
+                cmd.append(str(key))
+                if value is not None:
+                    cmd.append(str(value))
+
+        print("Running command:", " ".join(cmd))
+        subprocess.run(cmd, check=True)
+        seq_d = pfa.get_seq_dict(tmp_path)
+
+    finally:
+        # Clean up temp file
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
+            
+    return seq_d
 
 
 def sort_by_column_character_frequency(seq_dict, column):
