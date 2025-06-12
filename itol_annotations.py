@@ -345,8 +345,8 @@ def make_itol_binary_trait_dataset(outfile_path, count_dict, name_list, dataset_
 
         f.write(f'LEGEND_TITLE,{legend_title}\n')
         f.write(f"LEGEND_SHAPES,{','.join([str(field_shapes) for _ in name_list])}\n")
-        f.write(f'LEGEND_COLORS,{_make_legend_colors(name_list, hexcolors=hexcolors)}\n')
-        f.write(f'LEGEND_LABELS,{_make_legend_labels(name_list)}\n')
+        f.write(f'{_make_legend_colors(name_list, hexcolors=hexcolors)}\n')
+        f.write(f'{_make_legend_labels(name_list)}\n')
         f.write('DATA\n')
 
         for name, counts in count_dict.items():
