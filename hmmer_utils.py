@@ -3,6 +3,35 @@ import pandas as pd
 import os
 import subprocess
 
+import subprocess
+import shlex
+
+def run_simple_search(hmm_profile_path, output_fp, proteome_fp, raw_output_fp="hmmsearch_raw.txt"):
+    """
+    Run hmmsearch and output results in table format.
+
+    Parameters:
+        hmm_profile_path (str): Path to the HMM profile.
+        output_fp (str): Path to the summary output table (--tblout).
+        proteome_fp (str): Path to the FASTA protein file.
+        raw_output_fp (str): Path to full hmmsearch output (-o).
+    """
+    hmmsearch_cmd = [
+        "hmmsearch",
+        "--tblout", output_fp,
+        "-o", raw_output_fp,
+        hmm_profile_path,
+        proteome_fp
+    ]
+
+    try:
+        subprocess.run(hmmsearch_cmd, check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error running hmmsearch: {e}")
+        raise
+
+
+
 
 def get_db_versions(pfam_db_fp):
     """return corresponding db version for each base pfam id {base_name:base_name.version} 
@@ -89,10 +118,12 @@ def run_hmm_fetch_search(hmm_id, db_fp, proteome_fp, output_fp, hmm_file_path=No
         fetch_proc.stdout.close()
 
 
-def run_simple_search(hmm_profile_path, output_fp, proteome_fp):
+# def run_simple_search(hmm_profile_path, output_fp, proteome_fp):
 
-    hmmsearch_cmd = f'hmmsearch --tblout {output_fp} -o temp.txt {hmm_profile_path} {proteome_fp}'
-    subprocess.run(hmmsearch_cmd, shell=True)
+#     hmmsearch_cmd = f'hmmsearch --tblout {output_fp} -o temp.txt {hmm_profile_path} {proteome_fp}'
+#     subprocess.run(hmmsearch_cmd, shell=True)
+
+
     
 
 def run_hmm_alignment(db_fp, seqs_fp, hmm_id, output_fp, 
