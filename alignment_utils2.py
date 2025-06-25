@@ -10,6 +10,44 @@ import tempfile
 import os
 from jw_utils import parse_fasta as pfa
 
+
+def map_unaligned_to_aligned(unaligned_seq, aligned_seq):
+    """
+    Maps each unaligned (raw) position to its aligned (MSA) position.
+    
+    Parameters:
+    - unaligned_seq: str, raw protein sequence
+    - aligned_seq: str, aligned version (same sequence with gaps)
+    
+    **Assumptions:
+    1. aligned_seq is derived from unaligned_seq and preserves residue order
+    2. gaps (-) are in aligned_seq only
+    3. all residues in unaligned_seq appear in aligned_seq (no mismatches)
+    
+    Returns:
+    - Dictionary: {unaligned_index: aligned_index}
+    """
+    aligned_seq = aligned_seq.replace('*','')
+    unaligned_seq = unaligned_seq.replace('*','')
+    if aligned_seq.replace('-', '').upper() != unaligned_seq.upper():
+        raise ValueError('the aligned sequence and unaligned seq are not the same when "-" are removed')
+    mapping = {}
+    unaligned_pos = 0
+
+    for aligned_pos, aa in enumerate(aligned_seq):
+        if aa != '-':
+            if unaligned_pos >= len(unaligned_seq):
+                raise ValueError("More residues in aligned_seq than in unaligned_seq.")
+            mapping[unaligned_pos] = aligned_pos
+            unaligned_pos += 1
+
+    if unaligned_pos != len(unaligned_seq):
+        raise ValueError("unaligned_seq not fully accounted for in aligned_seq.")
+
+    return mapping
+
+
+
 def run_muscle(inp, output_fp, mode='align', muscle_path='muscle', **kwargs):
     """
     Run MUSCLE v5 alignment using either -align or -super5.

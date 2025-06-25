@@ -54,6 +54,37 @@ def get_db_versions(pfam_db_fp):
     return version_d
 
 
+def parse_domtblout_to_df(filepath):
+    """
+    Parse an HMMER --domtblout file into a pandas DataFrame with all columns,
+    correctly handling the variable-length 'description' column at the end.
+    """
+    column_names = [
+        "target_name", "target_accession", "tlen",
+        "query_name", "query_accession", "qlen",
+        "full_seq_Evalue", "full_seq_score", "full_seq_bias",
+        "domain_number", "domains_in_target",
+        "domain_cEvalue", "domain_iEvalue", "domain_score", "domain_bias",
+        "hmm_from", "hmm_to", "ali_from", "ali_to", "env_from", "env_to",
+        "acc", "description"
+    ]
+
+    records = []
+    with open(filepath) as f:
+        for line in f:
+            if line.startswith('#') or not line.strip():
+                continue
+            # Split into exactly len(column_names) parts,
+            parts = line.rstrip('\n').split(maxsplit=len(column_names) - 1)
+            # In case of missing description, pad with empty string
+            if len(parts) < len(column_names):
+                parts += [''] * (len(column_names) - len(parts))
+            records.append(parts)
+    
+    df = pd.DataFrame(records, columns=column_names)
+    return df
+
+
 def parse_hmmsearch_output(hmm_results_fp):
     """Return dataframe of hmmsearch '--tblout' results 
     
