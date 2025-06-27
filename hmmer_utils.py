@@ -2,9 +2,9 @@ import re
 import pandas as pd
 import os
 import subprocess
-
-import subprocess
 import shlex
+import tempfile
+from jw_utils import parse_fasta 
 
 def run_simple_search(hmm_profile_path, output_fp, proteome_fp, raw_output_fp="hmmsearch_raw.txt"):
     """
@@ -199,34 +199,52 @@ def run_hmm_alignment(db_fp, seqs_fp, hmm_id, output_fp,
 
 import subprocess
 
-def run_simple_hmm_alignment(seqs_fp, hmm_fp, output_fp, output_format='Pfam', trim=False):
+def run_simple_hmm_alignment(seqs, hmm_fp, output_fp,
+                             output_format='Pfam', trim=False):
     """
     Aligns sequences using hmmalign.
 
     Parameters:
-    seqs_fp (str): Filepath to the FASTA file containing the sequences to be aligned.
+    seqs (str or dict): Filepath to the FASTA file **or** a dict {header: seq}.
     hmm_fp (str): Filepath to the HMM profile.
     output_fp (str): Filepath where the aligned sequences will be saved.
-    output_format (str): Format of the output alignment (e.g., 'Stockholm', 'Pfam', 'A2M', 'PSIBLAST').
+    output_format (str): Format of the output alignment ('Stockholm','Pfam','A2M','PSIBLAST').
     trim (bool): Whether to enable trimming in hmmalign.
 
     Returns:
     None: Writes output to a file specified by output_fp.
     """
+    # If seqs is a dict, dump to a temp FASTA
+    cleanup_tmp = False
+    if isinstance(seqs, dict):
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.fasta')
+        tmp_fp = tmp.name
+        tmp.close()
+        pfa.write_to_fasta(seqs, tmp_fp)
+        seqs_file = tmp_fp
+        cleanup_tmp = True
+    else:
+        seqs_file = seqs
 
+    # Build the hmmalign command
     align_cmd = ['hmmalign', '--outformat', output_format]
-
     if trim:
         align_cmd.append('--trim')
-    
-    align_cmd += ['-o', output_fp, hmm_fp, seqs_fp]
-    
+    align_cmd += ['-o', output_fp, hmm_fp, seqs_file]
+
     print(f'Executing command: {" ".join(align_cmd)}')
 
     try:
-        subprocess.run(align_cmd, check=True)  # Run command safely
+        subprocess.run(align_cmd, check=True)
     except subprocess.CalledProcessError as e:
         print(f"Error running hmmalign: {e}")
+    finally:
+        # Clean up temporary FASTA if we created one
+        if cleanup_tmp:
+            try:
+                os.unlink(tmp_fp)
+            except OSError:
+                pass
 
 
 
