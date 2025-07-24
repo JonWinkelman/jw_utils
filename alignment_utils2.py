@@ -93,14 +93,14 @@ def run_muscle(inp, output_fp, mode='align', muscle_path='muscle', **kwargs):
 
         print("Running command:", " ".join(cmd))
         subprocess.run(cmd, check=True)
-        seq_d = pfa.get_seq_dict(tmp_path)
+        aln_seq_d = pfa.get_seq_dict(output_fp)
 
     finally:
         # Clean up temp file
         if tmp_path and os.path.exists(tmp_path):
             os.remove(tmp_path)
             
-    return seq_d
+    return aln_seq_d
 
 
 def sort_by_column_character_frequency(seq_dict, column):
