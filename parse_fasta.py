@@ -7,30 +7,101 @@ Created on Fri Jun 24 14:08:25 2022
 
 """
 
-def get_seq_dict(path_to_fasta):
-    '''
-    parse fast file and return as a dictionary
+# def get_seq_dict(path_to_fasta):
+#     '''
+#     parse fast file and return as a dictionary
     
-    parameters:
-        path_to_fasta (str): path to a fasta proteome
+#     parameters:
+#         path_to_fasta (str): path to a fasta proteome
         
-        return (dict): eqID as key and sequence as value
-    '''
-    seq = ''
-    seq_dict = {}
-    prot_id = None
-    with open(path_to_fasta, 'r') as f:
-        for line in f:
-            if line[0] == '>':
-                if prot_id:
-                    seq_dict[prot_id] = seq
-                prot_id = line.split(' ')[0][1:].strip()
-                seq = ''
-            else:
-                seq = seq + line.strip()
-        seq_dict[prot_id] = seq
+#         return (dict): eqID as key and sequence as value
+#     '''
+#     seq = ''
+#     seq_dict = {}
+#     prot_id = None
+#     with open(path_to_fasta, 'r') as f:
+#         for line in f:
+#             if line[0] == '>':
+#                 if prot_id:
+#                     seq_dict[prot_id] = seq
+#                 prot_id = line.split(' ')[0][1:].strip()
+#                 seq = ''
+#             else:
+#                 seq = seq + line.strip()
+#         seq_dict[prot_id] = seq
             
+#     return seq_dict
+
+import gzip
+from typing import Dict, Callable, Optional, Union, TextIO
+
+def get_seq_dict(
+    path_to_fasta: str,
+    use_full_header: bool = False,
+    key_func: Optional[Callable[[str], str]] = None,
+) -> Dict[str, str]:
+    """
+    Parse a FASTA (optionally gzipped) into a dict: {header_key: sequence}.
+
+    Parameters
+    ----------
+    path_to_fasta : str
+        Path to a FASTA file (.fa, .fasta, .faa, with or without .gz).
+    use_full_header : bool, default False
+        If False (default), use only the first whitespace-delimited token
+        from the header (sans '>') as the key. If True, use the entire
+        header line (minus the leading '>') as the key.
+    key_func : Callable[[str], str], optional
+        Optional function to transform the header string into a key.
+        Applied after `use_full_header` logic.
+
+    Returns
+    -------
+    Dict[str, str]
+        Mapping from header-derived key to sequence.
+    """
+    seq_dict: Dict[str, str] = {}
+    key: Optional[str] = None
+    seq_parts = []
+
+    # Open transparently, depending on file extension
+    open_func = gzip.open if path_to_fasta.endswith(".gz") else open
+    mode = "rt"  # text mode (handles universal newlines)
+
+    with open_func(path_to_fasta, mode) as fh:  # type: Union[TextIO, gzip.GzipFile]
+        for raw in fh:
+            line = raw.strip()
+            if not line:
+                continue  # skip blanks
+
+            if line.startswith(">"):
+                # finalize previous record
+                if key is not None:
+                    seq_dict[key] = "".join(seq_parts)
+
+                # new header
+                header = line[1:].strip()
+                if use_full_header:
+                    next_key = header
+                else:
+                    next_key = header.split(None, 1)[0]
+
+                if key_func is not None:
+                    next_key = key_func(next_key)
+
+                key = next_key
+                seq_parts = []
+            else:
+                seq_parts.append(line.replace(" ", "").replace("\t", "").upper())
+
+    # finalize last record
+    if key is not None:
+        seq_dict[key] = "".join(seq_parts)
+    else:
+        raise ValueError(f"No FASTA headers found in {path_to_fasta!r}")
+
     return seq_dict
+
 
 
 
@@ -81,24 +152,46 @@ def get_protein_subset(path_to_fasta, seq_ids):
     return seq_dict_subset
 
 
-def write_to_fasta(seq_dict, path, line_size=None):
-    """Write sequence dict to a fasta file.
+# def write_to_fasta(seq_dict, path, line_size=None):
+#     """Write sequence dict to a fasta file.
     
-    seq_dict (dict): {name:sequence}
-    path (str): path for saved file
-    line_size (int): length of line to break the full sequence into in fasta file.
+#     seq_dict (dict): {name:sequence}
+#     path (str): path for saved file
+#     line_size (int): length of line to break the full sequence into in fasta file.
+#     """
+#     with open(path, 'w') as f:
+#         for name, seq in seq_dict.items():
+#             f.write(f'>{name}\n')
+#             if line_size:
+#                 for i in range(int(len(seq)/line_size)):
+#                     start = (i*line_size)
+#                     end   = start+line_size
+#                     f.write(seq[start:end] + '\n')
+#                 f.write(seq[end:]+ '\n')
+#             else:
+#                 f.write(f'{seq}'+ '\n')
+def write_to_fasta(seq_dict, path, line_size: int = None):
     """
-    with open(path, 'w') as f:
-        for name, seq in seq_dict.items():
-            f.write(f'>{name}\n')
+    Write sequence dict to a FASTA file.
+
+    Parameters
+    ----------
+    seq_dict : dict
+        {header: sequence}, where header is written after ">" exactly as provided
+    path : str
+        Output FASTA file path
+    line_size : int, optional
+        Wrap sequence lines at this length. If None, writes the full sequence on one line.
+    """
+    with open(path, "w") as f:
+        for header, seq in seq_dict.items():
+            f.write(f">{header}\n")  # write the whole key as the header
             if line_size:
-                for i in range(int(len(seq)/line_size)):
-                    start = (i*line_size)
-                    end   = start+line_size
-                    f.write(seq[start:end] + '\n')
-                f.write(seq[end:]+ '\n')
+                for i in range(0, len(seq), line_size):
+                    f.write(seq[i:i+line_size] + "\n")
             else:
-                f.write(f'{seq}'+ '\n')
+                f.write(seq + "\n")
+
             
             
             
