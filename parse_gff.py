@@ -246,7 +246,7 @@ def make_simple_annot_df(path_to_gff, start_end=False, contig=False):
         df['end'] = end
         df['strand'] = strand
     if contig:
-        df['contig_name'] = contig_name
+        df['contig'] = contig_name
         
     return df.set_index('gene_ID')
 
