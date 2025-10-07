@@ -63,7 +63,7 @@ def get_seq_dict(
     seq_dict: Dict[str, str] = {}
     key: Optional[str] = None
     seq_parts = []
-
+    path_to_fasta =  str(path_to_fasta)
     # Open transparently, depending on file extension
     open_func = gzip.open if path_to_fasta.endswith(".gz") else open
     mode = "rt"  # text mode (handles universal newlines)
