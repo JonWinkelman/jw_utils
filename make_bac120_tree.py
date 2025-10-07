@@ -20,12 +20,12 @@ def concatenate_hmm_files(directory, output_file, suffix='.HMM'):
         directory (str): Path to the directory containing .HMM files.
         output_file (str): Path to the output file where concatenated content will be saved.
     """
-    with open(output_file, 'w') as outfile:
+    with open(output_file, 'w', encoding='utf-8') as outfile:
         
         for filename in os.listdir(directory):
             if filename.endswith(suffix):
                 file_path = os.path.join(directory, filename)
-                with open(file_path, 'r') as infile:
+                with open(file_path, 'r',  encoding='utf-8', errors='ignore') as infile:
                     outfile.write(infile.read())
                     outfile.write('\n')  # Add a newline between files
 
@@ -187,7 +187,7 @@ def extract_bac120_proteins(prot_name_fp_d, dfs, output_dir='./fastTree/bac120_p
             perc += 0.05  # Increment progress threshold
 
         # Parse the proteome FASTA
-        seq_d = pfa.get_seq_dict(proteome_fp)
+        seq_d = pfa.get_seq_dict(str(proteome_fp))
 
         # Extract sequences for HMM hits
         hmm_seq_d = {str(row["hmm_acc"]): seq_d.get(protein_id, None) 
@@ -230,7 +230,7 @@ def create_hmm_seq_files(prot_name_fp_d, hmm_bac120_ids, bac120_proteins, output
 
         for name in names:
             fp = Path(bac120_proteins) / f"{name}_bac120hits.faa"
-            seq = pfa.get_seq_dict(fp).get(hmm)
+            seq = pfa.get_seq_dict(str(fp)).get(hmm)
 
             if seq:
                 seq_d[name] = seq
@@ -370,7 +370,7 @@ def process_hmm_alignments(sto_fps, homogeneous_thresh=0.98, gap_threshold=0.8):
 #     """
 #     return set(names).difference(remove)
 
-def concatenate_sequences(fasta_dir, curated_accs, max_files=3000):
+def concatenate_sequences(fasta_dir, curated_accs, max_files=10000):
     """
     Concatenates sequences from multiple aligned FASTA files for each genome accession.
 
@@ -389,7 +389,7 @@ def concatenate_sequences(fasta_dir, curated_accs, max_files=3000):
     fasta_files = sorted([f for f in fasta_dir.glob("*.simple")])[:max_files]
 
     for fasta_file in fasta_files:
-        seq_d = pfa.get_seq_dict(fasta_file)
+        seq_d = pfa.get_seq_dict(str(fasta_file))
 
         if not seq_d:
             print(f"Warning: No valid sequences in {fasta_file}. Skipping.")
