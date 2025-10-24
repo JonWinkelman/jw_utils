@@ -4,10 +4,11 @@ import pandas as pd
 import shlex
 import subprocess
 import os
+from jw_utils import parse_fasta as pfa
 
 
 
-def fold_RNA(input_fasta_fp, output_file, folding_temp=37, flags=None):
+def fold_RNA(input_fasta_fp, output_file, folding_temp=37, flags = '--noPS'):
     """Takes rna sequences from fasta file and folds at a given temp.
     
     input_fasta_fp (str): fasta file contianing rna sequences
@@ -16,6 +17,7 @@ def fold_RNA(input_fasta_fp, output_file, folding_temp=37, flags=None):
     noPS (bool): default True. If False, will output a Postscript file for each rna
     flags (str): e.g. '-d2 --noLP'
     """
+    
     if not flags:
         flags=''
     
@@ -34,7 +36,24 @@ def fold_RNA(input_fasta_fp, output_file, folding_temp=37, flags=None):
         print("Error occurred during command execution")
     
 
+def parse_rnafold_fasta(fasta_fp, prot_name='flag'):
+    """parse raw RNAfold output fasta into a dataframe with seq, structure, and free energy columns, and indexed by protein ID"""
+    d = {}
+    with open(fasta_fp, 'r') as f:
+        for i, line in enumerate(f):
+            if i%3 == 0: 
+                l_id = line[1:].strip()
+            elif (i-1)%3 == 0:
+                seq=line.strip()
+            elif (i-2)%3 == 0:
+                ln_lst = line.split(' ')
+                struct=ln_lst[0]
+                energy =  float(ln_lst[-1].replace('(','').replace(')','').strip())
+                d[l_id] = [seq, struct, energy]
+    return pd.DataFrame(d, index=[f'{prot_name}_rna_seqs', f'{prot_name}_fold_structure', f'{prot_name}_free_energy']).transpose()
 
+
+    
 
 def find_simple_hairpin_indices(structure, min_loop_nt=3, min_stem_len=3):
     """Return list of tuples of start and end indices for an rna hairpin from a structure string
