@@ -315,18 +315,13 @@ def make_itol_multi_bargraph_dataset(outfile_path, count_dict, name_list, datase
             line=line.strip(',') 
             f.write(line+'\n')
 
-def relabel_itol_treeleafs(tree, relabel_dict, outfile_path):
+def relabel_itol_treeleafs(relabel_dict, outfile_path):
     """Write itol annotation file to relabel terminal leaves in tree
     
     parameters:
-    tree (Bio.Phylo.Newick.Tree): tree that is to be relabeled
     relabel_dict (dict): dict {old_leaf_name:new_leaf_name}
     outfile_path (str): path for new itol annotation file
     """
-    import warnings
-    tree_leafnames = [cl.name for cl in tree.get_terminals()]
-    if len(tree_leafnames) != len(relabel_dict.keys()):
-        warnings.warn('The number of tree leafs and the number of dict key names to be replaced are not equal')
     with open(outfile_path, 'w') as f:
         f.write('LABELS\n')
         f.write('SEPARATOR COMMA\n')
