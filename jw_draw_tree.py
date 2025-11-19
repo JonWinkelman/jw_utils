@@ -2,11 +2,27 @@ from Bio import Phylo
 from plotly import graph_objects as go
 import pandas as pd
 
-def get_x_coordinates(tree):
+def rotate_clade(tree, node_names):
+    """Reverse order of the internal nodes children, 'rotate' clade.
+    
+    node_names (iterable): list of node names to rotate
+    tree (Bio.Phylo tree)
+    """
+    for node_name in node_names:
+        target = next(tree.find_clades(node_name))
+        target.clades.reverse()
+
+
+
+def get_x_coordinates(tree, ignore_branch_lengths=False):
     """Associates to  each clade an x-coord.
        returns dict {clade: x-coord}
     """
-    xcoords = tree.depths()
+
+    if ignore_branch_lengths:
+        xcoords = tree.depths(unit_branch_lengths=True)
+    else:
+        xcoords = tree.depths()
     # tree.depth() maps tree clades to depths (by branch length).
     # returns a dict {clade: depth} where clade runs over all Clade instances of the tree, and depth
     # is the distance from root to clade
@@ -66,13 +82,13 @@ def get_clade_lines(orientation='horizontal', y_curr=0, x_start=0, x_curr=0, y_b
 
 
 def draw_clade(clade, x_start, line_shapes, line_color='rgb(15,15,15)', line_width=1, x_coords=0, y_coords=0, 
-               cl_to_highlight = None, highlight_line_width=2):
+               cl_to_highlight = None, highlight_line_width=2, ignore_branch_lengths=False):
     """Recursively draw the tree branches, down from the given clade"""
 
     x_curr = x_coords[clade]
     y_curr = y_coords[clade]
     if cl_to_highlight:
-        clade_names_to_highlight= [cl.name for cl in get_x_coordinates(cl_to_highlight)]
+        clade_names_to_highlight= [cl.name for cl in get_x_coordinates(cl_to_highlight, ignore_branch_lengths)]
         if clade.name in clade_names_to_highlight:
             line_width = highlight_line_width
     # Draw a horizontal line from start to here
@@ -236,7 +252,7 @@ def make_baseline_trace(shift, x_y_coords, max_x, bar_thickness, title=''):
 #############base tree functions###########################################################################################
 def create_tree(tree, title=None, intern_node_label=None,  node_color_dict=None, in_node_size=6, t_node_size=10,
                  label_mode='markers', height=850, node_size_dict=None, cl_to_highlight=None, highlight_line_width=2,
-                 hover_text = None):
+                 hover_text = None, ignore_branch_lengths=False):
     """Return a plotly tree  
 
     Parameters:  
@@ -249,7 +265,7 @@ def create_tree(tree, title=None, intern_node_label=None,  node_color_dict=None,
     label_mode (str): options 'markers', 'markers+text'. 'markers' - only show text on hover, 'markers+text' - show text always
     """
 
-    x_coords = get_x_coordinates(tree)
+    x_coords = get_x_coordinates(tree, ignore_branch_lengths)
     y_coords = get_y_coordinates(tree)
     line_shapes = []
     draw_clade(tree.root, 0, line_shapes, line_color='rgb(25,25,25)', line_width=1, x_coords=x_coords,
