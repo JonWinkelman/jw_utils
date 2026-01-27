@@ -11,6 +11,170 @@ import pandas as pd
 from jw_utils import parse_fasta as pfa
 import numpy as np
 from jw_utils import dna_utils as du
+from plotly import graph_objects as go
+
+def make_arrow_trace(protein, par, strand, prod, start, end, br,**kwargs): #color=None,
+    if kwargs['color']:
+        color = kwargs['color']
+    else:
+        color = 'rgb(100,100,100)'
+
+    'return a trace with an arrow drawn for the input feature'
+    
+    trace = go.Scatter(
+            x = [start, start, br, br, end,br,br,start,start],
+            y = [0, 0.25,0.25,0.5,0,-0.5,-0.25,-0.25,0],
+            mode = 'lines',
+            fill='toself',
+            line = {'width': 1.5,
+                    'color':color},
+            name = protein,
+            text = f'{protein}<br><br>{par}<br>strand: {strand}<br>{prod}<br>start: {start}<br>end: {end}',
+            hoverinfo = 'text')
+    return trace
+
+
+def flip_block(df):
+    """
+    Flip a genomic block (reverse coordinates and strand)
+    for a dataframe containing columns:
+    ['ID', 'start', 'end', 'strand', 'product', 'gene_ID', 'HOG']
+    """
+    
+    # Determine boundaries of the block
+    block_min = df[['start', 'end']].min().min()
+    block_max = df[['start', 'end']].max().max()
+
+    df = df.copy()  # to avoid modifying original dataframe
+
+    # Flip coordinates
+    df['new_starts'] = block_max - df['end']
+    df['new_ends']   = block_max - df['start']
+
+    # Flip strand
+    df['new_strand'] = df['strand'].map({'+': '-', '-': '+'}).fillna(df['strand'])
+
+    # Replace old columns with new ones
+    df['start'] = df['new_starts']
+    df['end']   = df['new_ends']
+    df['strand'] = df['new_strand']
+
+    # Drop temp columns
+    df = df.drop(columns=['new_starts', 'new_ends', 'new_strand'])
+
+    # Sort by the new starts coordinate
+    df = df.sort_values('start')
+
+    return df
+
+def get_df_for_feature(gff_fp, feature, fts=15, feature_type='cds'):
+    """Return a local df containing features near the passed feature
+    
+    feature (str): protein ID or gene locus tag (no "cds-" or "gene-" prefix btw...)
+    fts (int): num features to show in map on each side of of feature of interest 
+    """
+
+ 
+    df = pgf.make_simple_annot_df(gff_fp, start_end=True, contig=True)
+    df.index=df.index.str.replace('gene-', '')
+    df['protein_ID']=df['protein_ID'].str.replace('cds-', '')
+    if feature_type == 'cds':
+        df = df.reset_index().set_index('protein_ID')
+    if feature in df.index:  
+        f_index = df.index.get_loc(feature)
+        if f_index>=fts and f_index<= (len(df.index)-fts):
+            trimmed_df = df.iloc[(f_index-fts):(f_index+fts),:]
+        
+        elif f_index-fts<0:
+            trimmed_df = df.iloc[:(f_index+fts),:]
+        elif f_index + fts > df.shape[0]:
+            trimmed_df = df.iloc[(f_index-fts):,:]
+    else:
+        print(f'{feature} not in in the dataframe index, e.g. index = {df.index[0]}')
+        trimmed_df = df.iloc[:10,:]
+    if trimmed_df.loc[feature, 'strand'] == '-': 
+        trimmed_df=flip_block(trimmed_df)
+    return trimmed_df
+
+
+def make_map(trimmed_df, feature_name = None, height = 150, yrange = [-1,1], x_spread = 10000,label_feature=False ):
+    
+    """
+    x_spread (int): number of nts on each side of feature ID. 
+    """
+    traces = []
+    xrange = [0,0]
+    #make traces for each feature
+
+    comon_names = []
+    for i,protein in enumerate(trimmed_df.index):
+        #hoverinfo variables
+        gene =  trimmed_df.loc[protein,'gene_ID']
+        prod = trimmed_df.loc[protein,'product']
+        start = trimmed_df.loc[protein, 'start']
+        end = trimmed_df.loc[protein, 'end']
+        strand = trimmed_df.loc[protein,'strand']
+        comon_name = trimmed_df.loc[protein,'common_name']
+        comon_names.append(comon_name)
+        #make backbone trace between features
+        if i< (len(trimmed_df.index)-1):
+            next_orf_start = trimmed_df.iloc[(i+1),0]
+            traces.append(go.Scatter(x = [end, next_orf_start],
+                          y = [0,0],
+                          mode = 'lines',
+                          line = {'width': 3,
+                                  'color':'black'},
+                          showlegend = False,
+                          hoverinfo = None))
+        if strand == '-':
+            start =  end
+            end = trimmed_df.loc[protein, 'start']   
+        l = (end-start)     #lenght of the arrow 
+        br = start+(0.65*l) #defines where head of arrow is placed
+         #make feature traces, highlighting the feature of interest
+    
+        if protein == feature_name:
+            arrow_trace = make_arrow_trace(protein, gene, strand, prod, start, end, br, color='red')
+            traces.append(arrow_trace)
+            if label_feature:
+                traces.append(make_annot_trace(x=start,y=0.1,text=comon_name))
+            xrange  =[start-x_spread, end+x_spread]
+        else:
+            arrow_trace = make_arrow_trace(protein, gene, strand, prod, start, end, br,color='grey')
+            traces.append(arrow_trace)
+            if label_feature:
+                traces.append(make_annot_trace(x=start,y=0.1,text=comon_name))
+    dl = {'data':traces,
+            'layout':go.Layout(#title = f'local genome map around {feature_name}',
+                               paper_bgcolor='rgb(255,255,255)',
+                               plot_bgcolor='rgb(255,255,255)',
+                               width = 700,
+                               height = height,
+                               margin={'t':0, 'b':0, 'l':0, 'r':0},
+                               showlegend = False,
+            )} 
+ 
+    fig = go.Figure(dl)  
+    fig.update_yaxes(showgrid=False, showticklabels=False)
+    fig.update_yaxes(range=yrange)
+    fig.update_xaxes(range=xrange)
+    return fig, comon_names
+
+
+def make_annot_trace(x,y,text, fontsize=4):  
+    return go.Scatter(
+        x=[x],
+        y=[y],
+        text=[text],
+        mode="text",
+        textposition="top right",
+        showlegend=False,
+        textfont=dict(
+            size=fontsize,
+            color="black",
+            family="Arial"
+        ),
+    )
 
 def get_genes_wo_neighbors(path_to_gff, clearance=-5000, return_df=False):
     ''''
