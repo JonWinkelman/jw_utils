@@ -6,6 +6,49 @@ import shlex
 import tempfile
 from jw_utils import parse_fasta 
 
+import os
+import requests
+from time import sleep
+
+def download_pfam_hmms(pfam_ids, out_dir, delay=0.2, overwrite=False):
+    """
+    Download Pfam HMMs from InterPro API.
+
+    pfam_ids : list of strings (e.g., ['PF00210', 'PF00582'])
+    out_dir  : directory to save .hmm files
+    delay    : seconds between requests (avoid rate limiting)
+    overwrite: overwrite existing files
+    """
+    os.makedirs(out_dir, exist_ok=True)
+
+    base_url = "https://www.ebi.ac.uk/interpro/wwwapi/entry/pfam/{pfam}?annotation=hmm"
+
+    for pfam in pfam_ids:
+        out_path = os.path.join(out_dir, f"{pfam}.hmm.gz")
+
+        if os.path.exists(out_path) and not overwrite:
+            print(f"[SKIP] {pfam} already exists")
+            continue
+
+        url = base_url.format(pfam=pfam)
+
+        try:
+            print(f"[DOWNLOAD] {pfam}")
+            r = requests.get(url)
+
+            if r.status_code != 200:
+                print(f"[ERROR] {pfam}: status {r.status_code}")
+                continue
+
+            with open(out_path, "wb") as f:
+                f.write(r.content)
+
+            sleep(delay)
+
+        except Exception as e:
+            print(f"[FAIL] {pfam}: {e}")
+
+
 def run_simple_search(hmm_profile_path, output_fp, proteome_fp, raw_output_fp="hmmsearch_raw.txt"):
     """
     Run hmmsearch and output results in table format.
