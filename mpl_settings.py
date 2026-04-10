@@ -34,3 +34,9 @@ def format_ax(ax):
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     ax.tick_params(direction='out', length=3, width=0.8)
+
+
+def make_jitterplot(ax): 
+    """"""
+    
+    return None
