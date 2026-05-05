@@ -209,7 +209,7 @@ def compute_distance_matrix(fasta_file, model="identity"):
     model : str, optional
         Distance model to use. Options for nucleotides: "identity", "jc69", "k2p".
         Options for proteins: "identity", "blosum62", "pam250".
-        Default is "identity" (simple % identity).
+        Default is "identity" (simple % difference).
 
     Returns:
     -------
