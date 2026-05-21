@@ -7,6 +7,10 @@ import os
 import subprocess
 from jw_utils import parse_fasta as pfa
 from jw_utils import alignment_utils2 as au 
+from pathlib import Path
+from collections import Counter
+from Bio import SeqIO
+from scipy.stats import chi2
 
 
 def infer_ASRseq_w_gap(
@@ -618,3 +622,124 @@ def make_node_logo(
 
     fig.tight_layout(h_pad=0.6)
     return fig
+
+
+
+
+
+
+
+AA20 = set("ACDEFGHIKLMNPQRSTVWY")
+
+
+def sequence_qc_for_iqtree(
+    fasta_fp,
+    out_report_fp=None,
+    max_gap_ambiguity_frac=0.50,
+    composition_p_cutoff=0.05,
+):
+    """
+    Approximate IQ-TREE's alignment sequence QC.
+
+    Flags sequences with:
+    1. > max_gap_ambiguity_frac gaps/ambiguity
+    2. amino-acid composition significantly different from global composition
+
+    Parameters
+    ----------
+    fasta_fp : str or Path
+        Aligned protein FASTA.
+
+    out_report_fp : str or Path, optional
+        Optional CSV output path.
+
+    max_gap_ambiguity_frac : float
+        Maximum allowed fraction of gaps/ambiguous characters.
+
+    composition_p_cutoff : float
+        Chi-square p-value cutoff.
+
+    Returns
+    -------
+    pd.DataFrame
+        Per-sequence QC table.
+    """
+
+    records = list(SeqIO.parse(fasta_fp, "fasta"))
+
+    if not records:
+        raise ValueError(f"No sequences found in {fasta_fp}")
+
+    # Global amino-acid composition across non-gap, standard AA sites
+    global_counts = Counter()
+
+    for rec in records:
+        seq = str(rec.seq).upper()
+        global_counts.update([aa for aa in seq if aa in AA20])
+
+    total_global = sum(global_counts.values())
+
+    if total_global == 0:
+        raise ValueError("No standard amino acids found.")
+
+    global_freq = {
+        aa: global_counts[aa] / total_global
+        for aa in sorted(AA20)
+    }
+
+    rows = []
+
+    for rec in records:
+        seq_id = rec.id
+        seq = str(rec.seq).upper()
+        aln_len = len(seq)
+
+        aa_counts = Counter([aa for aa in seq if aa in AA20])
+        n_valid = sum(aa_counts.values())
+
+        gap_ambig_count = aln_len - n_valid
+        gap_ambig_frac = gap_ambig_count / aln_len
+
+        # Chi-square composition test against global composition
+        if n_valid == 0:
+            chi2_stat = float("nan")
+            p_value = 0.0
+            composition_pass = False
+        else:
+            chi2_stat = 0.0
+
+            for aa in sorted(AA20):
+                observed = aa_counts[aa]
+                expected = global_freq[aa] * n_valid
+
+                if expected > 0:
+                    chi2_stat += (observed - expected) ** 2 / expected
+
+            df = 19
+            p_value = chi2.sf(chi2_stat, df)
+            composition_pass = p_value >= composition_p_cutoff
+
+        gap_pass = gap_ambig_frac <= max_gap_ambiguity_frac
+
+        rows.append(
+            {
+                "seq_id": seq_id,
+                "alignment_length": aln_len,
+                "valid_aa_count": n_valid,
+                "gap_ambiguity_fraction": gap_ambig_frac,
+                "gap_ambiguity_percent": gap_ambig_frac * 100,
+                "chi2_stat": chi2_stat,
+                "chi2_df": 19,
+                "composition_p_value": p_value,
+                "gap_pass": gap_pass,
+                "composition_pass": composition_pass,
+                "overall_pass": gap_pass and composition_pass,
+            }
+        )
+
+    df = pd.DataFrame(rows)
+
+    if out_report_fp is not None:
+        df.to_csv(out_report_fp, index=False)
+
+    return df
