@@ -743,3 +743,115 @@ def sequence_qc_for_iqtree(
         df.to_csv(out_report_fp, index=False)
 
     return df
+
+
+def make_generax_mapping_file(results_dir, aln_fp): 
+    mapping_fp = results_dir / 'mapping.link'
+    with open(mapping_fp, "w") as out:
+        for rec in SeqIO.parse(aln_fp, "fasta"):
+            gene = rec.id
+            species = gene.split("__")[0]
+            out.write(f"{gene} {species}\n")
+
+
+def write_generax_families(
+    family_names,
+    alignment_files,
+    mapping_files,
+    output_fp="families.txt",
+    gene_tree_files=None,
+    subst_models="LG+G",
+):
+    """
+    Write GeneRax families.txt file.
+
+    Parameters
+    ----------
+    family_names : list[str]
+        Family identifiers.
+
+    alignment_files : list[str|Path]
+        Alignment file paths.
+
+    mapping_files : list[str|Path]
+        mapping.link file paths.
+
+    output_fp : str|Path
+        Output families.txt path.
+
+    gene_tree_files : list[str|Path] or None
+        Starting gene trees.
+        If None, GeneRax infers internally.
+
+    subst_models : str or list[str]
+        Substitution model(s).
+        Either one model for all families
+        or one model per family.
+
+    Returns
+    -------
+    None
+    """
+
+    n = len(family_names)
+
+    if len(alignment_files) != n:
+        raise ValueError(
+            "alignment_files length != family_names length"
+        )
+
+    if len(mapping_files) != n:
+        raise ValueError(
+            "mapping_files length != family_names length"
+        )
+
+    if gene_tree_files is not None:
+        if len(gene_tree_files) != n:
+            raise ValueError(
+                "gene_tree_files length != family_names length"
+            )
+
+    if isinstance(subst_models, str):
+        subst_models = [subst_models] * n
+
+    if len(subst_models) != n:
+        raise ValueError(
+            "subst_models length != family_names length"
+        )
+
+    output_fp = Path(output_fp)
+
+    with open(output_fp, "w") as out:
+
+        out.write("[FAMILIES]\n\n")
+
+        for i in range(n):
+
+            out.write(f"- {family_names[i]}\n\n")
+
+            out.write(
+                f"alignment = "
+                f"{Path(alignment_files[i])}\n\n"
+            )
+
+            if gene_tree_files is not None:
+
+                out.write(
+                    f"starting_gene_tree = "
+                    f"{Path(gene_tree_files[i])}\n\n"
+                )
+
+            out.write(
+                f"mapping = "
+                f"{Path(mapping_files[i])}\n\n"
+            )
+
+            out.write(
+                f"subst_model = "
+                f"{subst_models[i]}\n\n"
+            )
+
+    print(
+        f"Wrote {n} families to "
+        f"{output_fp}"
+    )
