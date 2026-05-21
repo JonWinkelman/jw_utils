@@ -4,7 +4,7 @@ import os
 import subprocess
 import shlex
 import tempfile
-from jw_utils import parse_fasta 
+from jw_utils import parse_fasta as pfa
 
 import os
 import requests
@@ -257,6 +257,11 @@ def run_simple_hmm_alignment(seqs, hmm_fp, output_fp,
     Returns:
     None: Writes output to a file specified by output_fp.
     """
+    #convert paths to strings
+    hmm_fp    = str(hmm_fp)
+    output_fp = str(output_fp)
+
+    
     # If seqs is a dict, dump to a temp FASTA
     cleanup_tmp = False
     if isinstance(seqs, dict):
@@ -267,7 +272,7 @@ def run_simple_hmm_alignment(seqs, hmm_fp, output_fp,
         seqs_file = tmp_fp
         cleanup_tmp = True
     else:
-        seqs_file = seqs
+        seqs_file = str(seqs)
 
     # Build the hmmalign command
     align_cmd = ['hmmalign', '--outformat', output_format]
