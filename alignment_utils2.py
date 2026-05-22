@@ -11,6 +11,200 @@ import os
 from jw_utils import parse_fasta as pfa
 
 
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from collections.abc import Mapping
+import subprocess
+
+
+def run_mafft(
+    seqs,
+    output_fasta,
+    mafft_bin="mafft",
+    **kwargs,
+):
+    """
+    Run MAFFT multiple sequence alignment.
+
+    Parameters
+    ----------
+    seqs : str | Path | dict
+        Input sequences.
+
+        Supported:
+
+        FASTA filepath:
+            "proteins.faa"
+
+        Sequence dict:
+            {
+                "seq1":"MKT...",
+                "seq2":"MKL..."
+            }
+
+    output_fasta : str | Path
+        Output alignment FASTA.
+
+    mafft_bin : str
+        MAFFT executable.
+
+    kwargs
+    ------
+    auto : bool
+        Automatically choose strategy.
+
+    retree : int
+        Tree rebuilding iterations.
+
+    maxiterate : int
+        Iterative refinement cycles.
+
+    localpair : bool
+        L-INS-i style.
+
+    genafpair : bool
+        E-INS-i style.
+
+    globalpair : bool
+        G-INS-i style.
+
+    op : float
+        Gap opening penalty.
+
+    ep : float
+        Gap extension offset.
+
+    clustalout : bool
+        Output Clustal format.
+
+    reorder : bool
+        Reorder output.
+
+    quiet : bool
+        Suppress MAFFT progress.
+
+    thread : int
+        Number of threads.
+
+    dash : bool
+        Structural information mode.
+
+    Returns
+    -------
+    Path
+        Output alignment filepath.
+    """
+
+    output_fasta = Path(output_fasta)
+
+    flag_specs = {
+        "auto": None,
+        "retree": int,
+        "maxiterate": int,
+        "localpair": None,
+        "genafpair": None,
+        "globalpair": None,
+        "op": float,
+        "ep": float,
+        "clustalout": None,
+        "reorder": None,
+        "quiet": None,
+        "thread": int,
+        "dash": None,
+    }
+
+    def build_cmd(input_fp):
+
+        cmd = [mafft_bin]
+
+        for key, value in kwargs.items():
+
+            if key not in flag_specs:
+
+                raise ValueError(
+                    f"Unsupported MAFFT option: {key}"
+                )
+
+            flag = f"--{key}"
+
+            if flag_specs[key] is None:
+
+                if value:
+
+                    cmd.append(flag)
+
+            else:
+
+                cmd.extend([
+                    flag,
+                    str(value)
+                ])
+
+        cmd.append(str(input_fp))
+
+        return cmd
+
+    with TemporaryDirectory() as tempdir:
+
+        tempdir = Path(tempdir)
+
+        if isinstance(seqs, (str, Path)):
+
+            input_fp = Path(seqs)
+
+            if not input_fp.exists():
+
+                raise FileNotFoundError(
+                    input_fp
+                )
+
+        elif isinstance(seqs, Mapping):
+
+            input_fp = (
+                tempdir /
+                "temp_input.fasta"
+            )
+
+            pfa.write_to_fasta(
+                seqs,
+                input_fp
+            )
+
+        else:
+
+            raise TypeError(
+                "seqs must be FASTA path "
+                "or sequence dict"
+            )
+
+        cmd = build_cmd(
+            input_fp
+        )
+
+        result = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+        if result.returncode != 0:
+
+            raise RuntimeError(
+                f"MAFFT failed\n\n"
+                f"Command:\n"
+                f"{' '.join(cmd)}\n\n"
+                f"stderr:\n"
+                f"{result.stderr}"
+            )
+
+        output_fasta.write_text(
+            result.stdout
+        )
+
+    return output_fasta
+
+
 def map_unaligned_to_aligned(unaligned_seq, aligned_seq):
     """
     Maps each unaligned (raw) position to its aligned (MSA) position.
