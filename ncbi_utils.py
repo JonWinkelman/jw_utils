@@ -172,6 +172,37 @@ def make_summary_df(json_fp):
     summary_df.index = accession_lst
     return summary_df 
 
+
+def make_summary_df_full(json_fp):
+    summary_d = parse_ncbi_summary(json_fp)
+    cols = {'accession':[], 'organism_name':[], 'tax_id':[], 'completeness':[], 'contamination':[], 'contig_n50':[], 'assembly_level':[] }
+    for acc, report in summary_d.items():
+        cols['accession'].append(acc)
+        t = report.get('checkm_info')
+        if t:
+            cols['completeness'].append(t.get('completeness'))
+            cols['contamination'].append(t.get('contamination'))
+        else:
+            cols['completeness'].append(None)
+            cols['contamination'].append(None)
+            
+        t = report.get('assembly_stats')
+        if t:
+            cols['contig_n50'].append(t.get('contig_n50'))
+        else:
+            cols['contig_n50'].append(None)
+        t = report['assembly_info']
+        if t:
+            cols['assembly_level'].append(t['assembly_level'])
+        else:
+            cols['assembly_level'].append(None)
+            
+        cols['organism_name'].append(report['organism'].get('organism_name'))
+        cols['tax_id'].append(report['organism'].get('tax_id'))
+    
+    return pd.DataFrame(cols).set_index('accession')
+    
+
 def write_summary_to_csv(summary_json_fp, out_fp):
     df = make_summary_df(summary_json_fp)
     df.to_csv(out_fp)
