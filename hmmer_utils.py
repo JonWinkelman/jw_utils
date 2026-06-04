@@ -5,10 +5,117 @@ import subprocess
 import shlex
 import tempfile
 from jw_utils import parse_fasta as pfa
-
-import os
 import requests
 from time import sleep
+from pathlib import Path
+from tqdm import tqdm
+
+
+def run_simple_searches(hmm_profile_path, results_dir, proteome_dir, eval_thresh=1e-6):
+    """
+    Run HMMER searches against all proteomes in a directory and return
+    filtered hits with their amino-acid sequences.
+
+    Parameters
+    ----------
+    hmm_profile_path : str or pathlib.Path
+        Path to the HMM profile file used as the query.
+
+    results_dir : str or pathlib.Path
+        Directory where raw hmmsearch output files will be written.
+
+    proteome_dir : str or pathlib.Path
+        Directory containing proteome FASTA files with the extension `.faa`.
+
+    eval_thresh : float, default=1e-6
+        Maximum E-value threshold for retaining HMM hits.
+
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame containing filtered HMM hits from all proteomes.
+        The index is `full_id`, constructed as:
+
+            genome_acc__protein_id
+
+        Columns include:
+
+        - protein_id
+        - HMM_name
+        - E-value
+        - description_of_target
+        - AA_seq
+        - genome_acc
+
+    Notes
+    -----
+    This function:
+
+    1. Finds all `.faa` files in `proteome_dir`.
+    2. Runs a simple HMM search for each proteome using `run_simple_search`.
+    3. Parses each HMM output using `parse_hmmsearch_output`.
+    4. Filters hits by E-value.
+    5. Adds amino-acid sequences from the corresponding proteome FASTA.
+    6. Concatenates all per-genome results into one DataFrame.
+    """
+
+    hmm_profile_path = Path(hmm_profile_path)
+    results_dir = Path(results_dir)
+    proteome_dir = Path(proteome_dir)
+    results_dir.mkdir(exist_ok=True, parents=True)
+    proteome_fps = sorted(proteome_dir.glob("*.faa"))
+    dfs = []
+    for proteome_fp in tqdm(proteome_fps, desc="Running HMM searches"):
+        hmm_out_fp = results_dir / f"{proteome_fp.stem}.txt"
+        run_simple_search(
+            str(hmm_profile_path),
+            str(hmm_out_fp),
+            proteome_fp=proteome_fp
+        )
+        df = parse_hmmsearch_output(hmm_out_fp)
+        df = df[df["E-value"] < eval_thresh].copy()
+        if df.empty:
+            continue
+        seq_df = (
+            pd.Series(pfa.get_seq_dict(proteome_fp), name="AA_seq")
+            .reset_index()
+            .rename(columns={"index": "target_name"})
+        )
+        df = (
+            pd.merge(df, seq_df, on="target_name")
+            [[
+                "target_name",
+                "query_name",
+                "E-value",
+                "description_of_target",
+                "AA_seq",
+            ]]
+        )
+        df["genome_acc"] = proteome_fp.stem
+        df["full_id"] = df["genome_acc"].str.cat(df["target_name"], sep="__")
+        dfs.append(df)
+    if not dfs:
+        return pd.DataFrame(
+            columns=[
+                "protein_id",
+                "HMM_name",
+                "E-value",
+                "description_of_target",
+                "AA_seq",
+                "genome_acc",
+            ]
+        )
+    result_df = (
+        pd.concat(dfs, ignore_index=True)
+        .set_index("full_id")
+        .rename(columns={
+            "target_name": "protein_id",
+            "query_name": "HMM_name",
+        })
+    )
+    return result_df
+
+
 
 def download_pfam_hmms(pfam_ids, out_dir, delay=0.2, overwrite=False):
     """

@@ -175,7 +175,7 @@ def make_summary_df(json_fp):
 
 def make_summary_df_full(json_fp):
     summary_d = parse_ncbi_summary(json_fp)
-    cols = {'accession':[], 'organism_name':[], 'tax_id':[], 'completeness':[], 'contamination':[], 'contig_n50':[], 'assembly_level':[] }
+    cols = {'accession':[], 'organism_name':[], 'strain':[],'tax_id':[], 'completeness':[], 'contamination':[], 'contig_n50':[], 'assembly_level':[] }
     for acc, report in summary_d.items():
         cols['accession'].append(acc)
         t = report.get('checkm_info')
@@ -199,6 +199,11 @@ def make_summary_df_full(json_fp):
             
         cols['organism_name'].append(report['organism'].get('organism_name'))
         cols['tax_id'].append(report['organism'].get('tax_id'))
+        t = report['organism'].get('infraspecific_names')
+        if t:
+            cols['strain'].append(t.get('strain'))
+        else:
+            cols['strain'].append(None)
     
     return pd.DataFrame(cols).set_index('accession')
     
