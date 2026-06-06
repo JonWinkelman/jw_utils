@@ -4,9 +4,10 @@ from tqdm import tqdm
 import subprocess
 import numpy as np
 import pandas as pd
-from scipy.cluster.hierarchy import linkage
+from scipy.cluster.hierarchy import linkage, fcluster
 from scipy.spatial.distance import squareform
 from scipy.cluster.hierarchy import to_tree
+from Bio import AlignIO
 
 
 def make_genome_sketch(fp, out_dir):
@@ -86,7 +87,7 @@ from pathlib import Path
 import subprocess
 
 
-def make_dist_matrix(
+def make_dist_matrix_from_sketches(
     dist_mat_out_fp,
     sketch_fps_lst=None,
     sketch_dir=None,
@@ -144,43 +145,7 @@ def make_dist_matrix(
     df = mash_output_to_dataframe(dist_mat_out_fp)
     return df
 
-    
-# def make_dist_matrix(
-#     sketch_fps_lst,
-#     sketch_file_names_fp,
-#     dist_mat_fp,
-#     threads=8,
-#     overwrite=False,
-# ):
-#     sketch_file_names_fp = Path(sketch_file_names_fp)
-#     dist_mat_fp = Path(dist_mat_fp)
 
-#     if dist_mat_fp.exists() and not overwrite:
-#         print(f"Using existing distance matrix: {dist_mat_fp}")
-#         return mash_output_to_dataframe(dist_mat_fp)
-
-#     _write_textfile_for_mash(sketch_fps_lst, out_fp=sketch_file_names_fp)
-
-#     cmd = [
-#         "mash",
-#         "triangle",
-#         "-p",
-#         str(threads),
-#         "-l",
-#         str(sketch_file_names_fp),
-#     ]
-
-#     with dist_mat_fp.open("w") as out_f:
-#         subprocess.run(
-#             cmd,
-#             stdout=out_f,
-#             stderr=subprocess.PIPE,
-#             text=True,
-#             check=True,
-#         )
-
-#     df = mash_output_to_dataframe(dist_mat_fp)
-#     return df
 
 
 
@@ -225,7 +190,10 @@ def single_linkage_clusters_scipy(distance_df, threshold=0.98):
 
     return dict(zip(genomes, labels))
 
-
+def save_upgma_to_newick(distance_df, newick_output_fp): 
+    Z, labels  = build_upgma_tree(distance_df)
+    with open(newick_output_fp, "w") as f:
+        f.write(linkage_to_newick(Z, labels))
 
 def build_upgma_tree(distance_df):
     """
@@ -363,3 +331,125 @@ def linkage_to_newick(Z, labels):
         return f"({left},{right}):{branch_length:.6f}"
 
     return build_newick(tree, tree.dist) + ";"
+
+
+
+
+def protein_alignment_distance_matrix(alignment_fp):
+    """
+    Compute pairwise amino-acid distances from a protein multiple sequence alignment.
+
+    Distance is calculated as:
+
+        1 - amino_acid_identity
+
+    ignoring positions where either sequence has a gap.
+    """
+
+    alignment = AlignIO.read(alignment_fp, "fasta")
+
+    names = [record.id for record in alignment]
+    seqs = np.array([list(str(record.seq)) for record in alignment])
+
+    n = len(names)
+    dist = np.zeros((n, n), dtype=float)
+
+    for i in range(n):
+        for j in range(i):
+            s1 = seqs[i]
+            s2 = seqs[j]
+
+            valid = (s1 != "-") & (s2 != "-")
+
+            if valid.sum() == 0:
+                d = np.nan
+            else:
+                identity = (s1[valid] == s2[valid]).mean()
+                d = 1 - identity
+
+            dist[i, j] = d
+            dist[j, i] = d
+
+    return pd.DataFrame(dist, index=names, columns=names)
+
+
+
+def make_fclusters(Z, labels, cluster_distance):
+    """
+    Convert a hierarchical clustering tree into flat clusters using a
+    distance threshold.
+
+    Parameters
+    ----------
+    Z : numpy.ndarray
+        SciPy linkage matrix produced by
+        `scipy.cluster.hierarchy.linkage()`, typically generated from a
+        pairwise distance matrix using UPGMA (`method='average'`) or
+        another hierarchical clustering method.
+
+    labels : list[str]
+        Labels corresponding to the leaves of the linkage tree. The order
+        must match the order of samples used to generate `Z`.
+
+    cluster_distance : float
+        Maximum linkage distance allowed within a cluster. The dendrogram
+        is cut at this height using `criterion='distance'`.
+
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame containing cluster assignments with columns:
+
+        - genome : genome/sample identifier
+        - cluster : integer cluster ID
+
+    Notes
+    -----
+    This function uses:
+
+        fcluster(Z, t=cluster_distance, criterion='distance')
+
+    to convert a hierarchical clustering tree into flat clusters.
+
+    Genomes are grouped together only if their clusters merge at a
+    linkage distance less than or equal to `cluster_distance` in the
+    dendrogram.
+
+    For UPGMA clustering, the linkage distance corresponds to the
+    average distance between the members of merged clusters.
+
+    Examples
+    --------
+    Create clusters from a UPGMA tree:
+
+    >>> cluster_df = make_fclusters(
+    ...     Z,
+    ...     labels,
+    ...     cluster_distance=0.03
+    ... )
+
+    Count cluster sizes:
+
+    >>> cluster_df['cluster'].value_counts()
+
+    Merge cluster assignments back into metadata:
+
+    >>> summary_df = summary_df.merge(
+    ...     cluster_df,
+    ...     left_index=True,
+    ...     right_on='genome'
+    ... )
+    """
+
+    fclusters = fcluster(
+        Z,
+        t=cluster_distance,
+        criterion="distance"
+    )
+
+    cluster_df = pd.DataFrame({
+        "genome": labels,
+        "cluster": fclusters
+    })
+
+    return cluster_df
