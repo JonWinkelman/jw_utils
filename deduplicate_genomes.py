@@ -453,3 +453,21 @@ def make_fclusters(Z, labels, cluster_distance):
     })
 
     return cluster_df
+
+
+def pick_cluster_medoid(distance_df, members):
+    """
+    Return the sequence closest to the center of a cluster.
+
+    Parameters
+    ----------
+    distance_df : pd.DataFrame
+        Full pairwise distance matrix.
+
+    members : list
+        Sequence IDs belonging to a cluster.
+    """
+    sub = distance_df.loc[members, members]
+    mean_dist = sub.mean(axis=1)
+    return mean_dist.idxmin()
+    
