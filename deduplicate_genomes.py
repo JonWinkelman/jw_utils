@@ -8,6 +8,14 @@ from scipy.cluster.hierarchy import linkage, fcluster
 from scipy.spatial.distance import squareform
 from scipy.cluster.hierarchy import to_tree
 from Bio import AlignIO
+from Bio import Phylo
+from Bio.Phylo.BaseTree import Tree
+from pathlib import Path
+import tempfile
+import subprocess
+import csv
+from collections import defaultdict
+from typing import Literal
 
 
 def make_genome_sketch(fp, out_dir):
@@ -470,4 +478,114 @@ def pick_cluster_medoid(distance_df, members):
     sub = distance_df.loc[members, members]
     mean_dist = sub.mean(axis=1)
     return mean_dist.idxmin()
+
+
+
+def pick_spaced_leaves_with_treecluster(
+    tree: Tree,
+    threshold: float,
+    method: str = "max_clade",
+    representative: Literal["first", "medoid"] = "medoid",
+    treecluster_cmd: str = "TreeCluster.py",
+) -> list[str]:
+    """
+    Cluster a Bio.Phylo tree with TreeCluster and return one representative
+    leaf per cluster.
+
+    https://github.com/niemasd/TreeCluster
+    conda install bioconda::treecluster
+
+    Parameters
+    ----------
+    tree
+        A Bio.Phylo Tree object.
+    threshold
+        TreeCluster branch-length / patristic-distance threshold.
+    method
+        TreeCluster method. Common choices:
+        - "max_clade": clusters clades with max pairwise distance <= threshold
+        - "max": similar, but not constrained to clades
+        - "single_linkage": looser chaining behavior
+    representative
+        "first"  : first leaf encountered in each cluster
+        "medoid" : leaf with smallest mean patristic distance to others
+    treecluster_cmd
+        Command used to invoke TreeCluster. Usually "TreeCluster.py".
+
+    Returns
+    -------
+    list[str]
+        Selected leaf names.
+    """
+
+    terminals = tree.get_terminals()
+    leaf_names = [t.name for t in terminals]
+
+    if any(name is None for name in leaf_names):
+        raise ValueError("All terminal leaves must have names.")
+
+    if len(set(leaf_names)) != len(leaf_names):
+        raise ValueError("Leaf names must be unique.")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        tree_path = tmpdir / "input_tree.nwk"
+        out_path = tmpdir / "treecluster_output.tsv"
+
+        Phylo.write(tree, tree_path, "newick")
+
+        cmd = [
+            treecluster_cmd,
+            "-i", str(tree_path),
+            "-o", str(out_path),
+            "-t", str(threshold),
+            "-m", method,
+        ]
+
+        subprocess.run(cmd, check=True, capture_output=True, text=True)
+
+        clusters = defaultdict(list)
+
+        with open(out_path, newline="") as handle:
+            reader = csv.DictReader(handle, delimiter="\t")
+
+            # TreeCluster usually outputs:
+            # SequenceName    ClusterNumber
+            for row in reader:
+                name = row.get("SequenceName") or row.get("sequence") or row.get("Taxon")
+                cluster = row.get("ClusterNumber") or row.get("cluster")
+
+                if name is None or cluster is None:
+                    raise ValueError(
+                        f"Unexpected TreeCluster output columns: {reader.fieldnames}"
+                    )
+
+                # TreeCluster uses -1 for singleton/unclustered leaves.
+                # Treat each -1 leaf as its own cluster.
+                if cluster == "-1":
+                    cluster = f"singleton::{name}"
+
+                clusters[cluster].append(name)
+
+    if representative == "first":
+        return [members[0] for members in clusters.values()]
+
+    if representative == "medoid":
+        selected = []
+
+        for members in clusters.values():
+            if len(members) == 1:
+                selected.append(members[0])
+                continue
+
+            best_leaf = min(
+                members,
+                key=lambda x: sum(tree.distance(x, y) for y in members if y != x)
+                / (len(members) - 1),
+            )
+            selected.append(best_leaf)
+
+        return selected
+
+    raise ValueError("representative must be 'first' or 'medoid'")
     
