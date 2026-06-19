@@ -12,6 +12,7 @@ from jw_utils import parse_fasta as pfa
 import numpy as np
 from jw_utils import dna_utils as du
 from plotly import graph_objects as go
+from Bio.Seq import Seq
 
 def make_arrow_trace(protein, par, strand, prod, start, end, br,**kwargs): #color=None,
     if kwargs['color']:
@@ -34,36 +35,93 @@ def make_arrow_trace(protein, par, strand, prod, start, end, br,**kwargs): #colo
     return trace
 
 
+
+def get_start_codon_region(gene_row, genome_dict, upstream=200, downstream=10):
+    """
+    Return sequence relative to the translational start site.
+    designed to work from jw_utils.parse_gff.make_simple_annot_df()
+
+    For '+' strand:
+        start-upstream : start+downstream
+
+    For '-' strand:
+        reverse complement of
+        end-downstream : end+upstream
+
+    Parameters
+    ----------
+    gene_row : pd.Series or dict-like
+        Must contain 'start', 'end', 'strand', and 'contig'.
+    genome_dict : dict
+        {contig_id: genomic_sequence}
+    upstream : int
+        Number of bases upstream of the start codon.
+    downstream : int
+        Number of bases downstream of the start codon.
+
+    Returns
+    -------
+    str
+        Sequence oriented 5'→3' relative to the gene.
+    """
+    seq = genome_dict[gene_row["contig"]]
+
+    start = int(gene_row["start"])
+    end = int(gene_row["end"])
+    strand = gene_row["strand"]
+
+    if strand == "+":
+        left = max(0, start - 1 - upstream)
+        right = min(len(seq), start - 1 + downstream)
+        return seq[left:right]
+
+    elif strand == "-":
+        left = max(0, end - downstream)
+        right = min(len(seq), end + upstream)
+        return str(Seq(seq[left:right]).reverse_complement())
+
+    else:
+        raise ValueError(f"Unknown strand: {strand}")
+
+
+
 def flip_block(df):
     """
     Flip a genomic block (reverse coordinates and strand)
     for a dataframe containing columns:
-    ['ID', 'start', 'end', 'strand', 'product', 'gene_ID', 'HOG']
+    ['ID', 'starts', 'ends', 'strand', 'product', 'gene_ID', 'HOG']
     """
+    if 'start' in df.columns:
+        col_rename=True
+        df = df.rename(columns = {'start':'starts', 'end':'ends'})
+    else:
+        col_rename=False
     
     # Determine boundaries of the block
-    block_min = df[['start', 'end']].min().min()
-    block_max = df[['start', 'end']].max().max()
+    block_min = df[['starts', 'ends']].min().min()
+    block_max = df[['starts', 'ends']].max().max()
 
     df = df.copy()  # to avoid modifying original dataframe
 
     # Flip coordinates
-    df['new_starts'] = block_max - df['end']
-    df['new_ends']   = block_max - df['start']
+    df['new_starts'] = block_max - df['ends']
+    df['new_ends']   = block_max - df['starts']
 
     # Flip strand
     df['new_strand'] = df['strand'].map({'+': '-', '-': '+'}).fillna(df['strand'])
 
     # Replace old columns with new ones
-    df['start'] = df['new_starts']
-    df['end']   = df['new_ends']
+    df['starts'] = df['new_starts']
+    df['ends']   = df['new_ends']
     df['strand'] = df['new_strand']
 
     # Drop temp columns
     df = df.drop(columns=['new_starts', 'new_ends', 'new_strand'])
 
     # Sort by the new starts coordinate
-    df = df.sort_values('start')
+    df = df.sort_values('starts')
+    if col_rename:
+        df = df.rename(columns = {'starts':'start', 'ends':'end'})
 
     return df
 
@@ -240,33 +298,8 @@ def get_genes_wo_neighbors_df(path_to_gff, clearance=-5000):
 
 
 def rev_comp(seq):
-    ''' 
-    return the reverse complement of a dna sequences
-
-    This is not optimized for large sequences, but code is simple
-    
-    Parameters:
-    
-    seq (str): can be a string of upper or lower case DNA bases: (a,t,c,g)
-    
-    
-    '''
-    base_pair_dict = {
-        'A':'T',
-        'T':'A',
-        'C':'G',
-        'G':'C',
-        'a':'t',
-        't':'a',
-        'c':'g',
-        'g':'c',
-        'n':'n',
-        'N':'N'
-        }
-    rev_comp_seq = ''
-    for base in seq:
-        rev_comp_seq = base_pair_dict[base] + rev_comp_seq
-    return rev_comp_seq
+    seq = Seq(seq)
+    return seq.reverse_complement()
 
 
 
@@ -288,12 +321,12 @@ def _get_UTR(seq_d, UTR_coords, contig, strand, b4_start,after_start):
         UTR_coords[1] = len(seq_d[contig])
     seq = seq_d[contig][UTR_coords[0]:UTR_coords[1]]
     if strand == '-':
-        seq = du.rev_comp(seq)
+        seq = rev_comp(seq)
     return seq
 
 
 
-def get_sequence_around_start(start, end, strand, contig, path_to_fasta_genome, b4_start, after_start):
+def get_sequence_around_start(start, end, strand, contig, seq_d, b4_start, after_start):
     """return dna sequence in fasta genome around start codon. 
     
     seq_d (dict): dict with fasta genome where the ID is the contig name
@@ -303,7 +336,7 @@ def get_sequence_around_start(start, end, strand, contig, path_to_fasta_genome, 
     b4_start (int): how much sequence upstream of start codon to return
     after_start (int): how much sequence downstream of start codon to return
     """
-    seq_d = pfa.get_seq_dict(path_to_fasta_genome)
+
     if strand == '+':
         UTR_coords = [start-(b4_start+1),start+(after_start-1)]
         seq = _get_UTR(seq_d, UTR_coords, contig, strand,b4_start,after_start)
