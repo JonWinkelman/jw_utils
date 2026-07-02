@@ -6,6 +6,57 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.mixture import GaussianMixture
 from scipy.stats import norm
+from scipy.stats import gaussian_kde
+
+
+def density_based_x_jitter(
+    yvals: np.ndarray,
+    center: float,
+    max_spread: float = 0.03,
+) -> np.ndarray:
+    """
+    Generate x-coordinates for a scatter plot by jittering points according to
+    their local density along the y-axis.
+
+    Points located in dense regions of the y-distribution receive larger
+    horizontal jitter, while isolated points remain close to the center.
+    This produces a swarm-like appearance without requiring iterative point
+    placement.
+
+    Parameters
+    ----------
+    yvals : array-like
+        Y-values to plot.
+    center : float
+        Central x-coordinate around which points are jittered.
+    max_spread : float, default=0.03
+        Maximum standard deviation of the horizontal jitter. Points in the
+        highest-density region receive approximately this amount of jitter.
+
+    Returns
+    -------
+    np.ndarray
+        Jittered x-coordinates corresponding to `yvals`.
+    """
+    yvals = np.asarray(yvals, dtype=float)
+    ilen=len(yvals)
+    yvals = yvals[~np.isnan(yvals)]
+    if len(yvals) < ilen:
+        print('There were nan vals in yvals that were filered out')
+
+    if len(yvals) == 0:
+        return np.array([])
+
+    if len(yvals) == 1:
+        return np.array([center])
+
+    density = gaussian_kde(yvals)(yvals)
+    density /= density.max()
+
+    jitter_sd = max_spread * density
+
+    return np.random.normal(loc=center, scale=jitter_sd), yvals
+
 
 def make_gaussian_PDF(
     data,
