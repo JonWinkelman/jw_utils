@@ -35,8 +35,9 @@ def density_based_x_jitter(
 
     Returns
     -------
+    tuple of xvals and yvals
     np.ndarray
-        Jittered x-coordinates corresponding to `yvals`.
+        Jittered x-coordinates corresponding to `yvals` a
     """
     yvals = np.asarray(yvals, dtype=float)
     ilen=len(yvals)
