@@ -183,66 +183,313 @@ def open_alignment_in_jalview(alignment_dict, jalview_path='/Applications/Jalvie
 import os
 import subprocess
 
-def run_iqtree_asr(alignment_file, tree_file=None, model='MFP',
-                   threads=2, prefix='my_asr', output_dir=None,
-                   sh_alrt_reps=1000, ufboot_reps=None, outgroups=None):
-    """
-    Runs IQ-TREE ancestral sequence reconstruction with SH-aLRT support.
-    Optionally also runs ultrafast bootstrap (UFBoot) and supports outgroup rooting.
+import os
+import shlex
+import subprocess
+from collections.abc import Mapping, Sequence
+from os import PathLike
+from typing import Any
 
-    Parameters:
-    alignment_file: Path to alignment (FASTA, PHYLIP, etc.).
-    tree_file: Optional Newick tree. If None, IQ-TREE infers one.
-    model: Substitution model (default 'MFP').
-    threads: Number of CPU threads.
-    prefix: Output file prefix.
-    output_dir: Directory for output files (optional).
-    sh_alrt_reps: SH-aLRT replicates (default: 1000).
-    ufboot_reps: UFBoot replicates (default: None → skip).
-    outgroups: Outgroup taxa (comma-separated string or path to text file with one name per line).
-    """
 
-    # Ensure output directory exists
-    if output_dir:
+def _format_iqtree_option_name(name: str) -> str:
+    """
+    Convert a Python keyword into an IQ-TREE command-line option.
+
+    Examples
+    --------
+    seed         -> --seed
+    date_options -> --date-options
+    redo         -> --redo
+    B            -> -B
+    -te          -> -te
+    --safe       -> --safe
+    """
+    if name.startswith("-"):
+        return name
+
+    if len(name) == 1:
+        return f"-{name}"
+
+    return f"--{name.replace('_', '-')}"
+
+
+def _append_iqtree_options(
+    command: list[str],
+    options: Mapping[str, Any],
+) -> None:
+    """
+    Append arbitrary IQ-TREE options to a command.
+
+    Rules
+    -----
+    True:
+        Add the flag without a value.
+        redo=True -> --redo
+
+    False or None:
+        Omit the option.
+
+    Scalar:
+        Add the option and its value.
+        seed=123 -> --seed 123
+
+    Sequence:
+        Add the option followed by all values.
+        rlen=[0.01, 0.1, 1.0] -> -rlen 0.01 0.1 1.0
+    """
+    for name, value in options.items():
+        option = _format_iqtree_option_name(name)
+
+        if value is None or value is False:
+            continue
+
+        command.append(option)
+
+        if value is True:
+            continue
+
+        if (
+            isinstance(value, Sequence)
+            and not isinstance(value, (str, bytes, PathLike))
+        ):
+            command.extend(str(item) for item in value)
+        else:
+            command.append(str(value))
+
+
+def run_iqtree_asr(
+    alignment_file,
+    tree_file=None,
+    model="MFP",
+    threads=2,
+    prefix="my_asr",
+    output_dir=None,
+    sh_alrt_reps=1000,
+    ufboot_reps=None,
+    outgroups=None,
+    *,
+    fixed_topology=False,
+    iqtree_executable="iqtree2",
+    iqtree_options=None,
+    **iqtree_kwargs,
+):
+    """
+    Run IQ-TREE ancestral sequence reconstruction.
+
+    By default, a supplied tree is passed with ``-t`` and is therefore used
+    as a starting tree for topology searching. Set ``fixed_topology=True``
+    to pass it with ``-te``, which keeps its topology fixed while allowing
+    IQ-TREE to optimize branch lengths and model parameters.
+
+    Parameters
+    ----------
+    alignment_file : str or os.PathLike
+        Path to the sequence alignment.
+
+    tree_file : str or os.PathLike, optional
+        Path to a Newick tree. If omitted, IQ-TREE infers a tree.
+
+    model : str, default="MFP"
+        IQ-TREE substitution model or ModelFinder specification.
+
+    threads : int or str, default=2
+        Number of CPU threads. IQ-TREE values such as "AUTO" are also allowed.
+
+    prefix : str, default="my_asr"
+        Output-file prefix.
+
+    output_dir : str or os.PathLike, optional
+        Directory for output files.
+
+    sh_alrt_reps : int or None, default=1000
+        Number of SH-aLRT replicates. Set to None or 0 to skip SH-aLRT.
+
+    ufboot_reps : int or None, default=None
+        Number of ultrafast-bootstrap replicates.
+
+    outgroups : str or os.PathLike, optional
+        A comma-separated taxon list or a text file containing one taxon
+        per line.
+
+    fixed_topology : bool, default=False
+        If True, use ``-te tree_file`` instead of ``-t tree_file``.
+        Requires ``tree_file``.
+
+    iqtree_executable : str, default="iqtree2"
+        IQ-TREE executable name or path, such as "iqtree2" or "iqtree3".
+
+    iqtree_options : mapping, optional
+        Additional IQ-TREE options. Dictionary keys may be exact command-line
+        flags or Python-style names.
+
+        Examples::
+
+            iqtree_options={
+                "--seed": 123,
+                "--redo": True,
+                "-rlen": [0.01, 0.1, 1.0],
+            }
+
+    **iqtree_kwargs
+        Additional IQ-TREE options using Python-compatible keyword names.
+
+        Examples::
+
+            seed=123
+            redo=True
+            safe=True
+            date_options="-u 0"
+            branch_scale=0.5
+
+        Underscores are converted to hyphens, so ``branch_scale`` becomes
+        ``--branch-scale``.
+
+    Returns
+    -------
+    subprocess.CompletedProcess
+        Result returned by ``subprocess.run``.
+
+    Notes
+    -----
+    Existing calls remain valid because all newly added named parameters
+    occur after ``*`` and therefore cannot alter the meaning of existing
+    positional arguments.
+    """
+    alignment_file = os.fspath(alignment_file)
+
+    if tree_file is not None:
+        tree_file = os.fspath(tree_file)
+
+    if fixed_topology and tree_file is None:
+        raise ValueError(
+            "fixed_topology=True requires tree_file to be provided."
+        )
+
+    if output_dir is not None:
+        output_dir = os.fspath(output_dir)
         os.makedirs(output_dir, exist_ok=True)
         prefix_path = os.path.join(output_dir, prefix)
     else:
         prefix_path = prefix
-    
-    # Build base command
+
     command = [
-        "iqtree2",
-        "-s", alignment_file,
-        "-m", model,
+        iqtree_executable,
+        "-s",
+        alignment_file,
+        "-m",
+        str(model),
         "--ancestral",
-        "-T", str(threads),
-        "--alrt", str(sh_alrt_reps),
-        "--prefix", prefix_path
+        "-T",
+        str(threads),
+        "--prefix",
+        prefix_path,
     ]
-    
-    # Add bootstrap if requested
+
+    if sh_alrt_reps:
+        command.extend(["--alrt", str(sh_alrt_reps)])
+
     if ufboot_reps:
         command.extend(["-B", str(ufboot_reps)])
-    
-    # Add tree file if provided
-    if tree_file:
-        command.extend(["-t", tree_file])
-    
-    # Handle outgroups
+
+    if tree_file is not None:
+        tree_option = "-te" if fixed_topology else "-t"
+        command.extend([tree_option, tree_file])
+
     if outgroups:
-        if os.path.isfile(outgroups):  # If it's a file, read and join
-            with open(outgroups) as f:
-                outgroup_list = [line.strip() for line in f if line.strip()]
-            outgroup_str = ",".join(outgroup_list)
+        outgroups_path = os.fspath(outgroups)
+
+        if os.path.isfile(outgroups_path):
+            with open(outgroups_path, encoding="utf-8") as handle:
+                outgroup_list = [
+                    line.strip()
+                    for line in handle
+                    if line.strip()
+                ]
+            outgroup_string = ",".join(outgroup_list)
         else:
-            outgroup_str = outgroups  # Assume it's already comma-separated
-        command.extend(["-o", outgroup_str])
+            outgroup_string = outgroups_path
 
-    # Run IQ-TREE
-    subprocess.run(command, check=True)
-    print(f"IQ-TREE ASR completed. Results saved with prefix '{prefix_path}'")
+        command.extend(["-o", outgroup_string])
 
-import pandas as pd
+    if iqtree_options is not None:
+        if not isinstance(iqtree_options, Mapping):
+            raise TypeError("iqtree_options must be a mapping or None.")
+        _append_iqtree_options(command, iqtree_options)
+
+    _append_iqtree_options(command, iqtree_kwargs)
+
+    print(f"Running: {shlex.join(command)}")
+
+    result = subprocess.run(command, check=True)
+
+    print(
+        "IQ-TREE ASR completed. "
+        f"Results saved with prefix '{prefix_path}'"
+    )
+
+    return result
+
+
+# def run_iqtree_asr(alignment_file, tree_file=None, model='MFP',
+#                    threads=2, prefix='my_asr', output_dir=None,
+#                    sh_alrt_reps=1000, ufboot_reps=None, outgroups=None):
+#     """
+#     Runs IQ-TREE ancestral sequence reconstruction with SH-aLRT support.
+#     Optionally also runs ultrafast bootstrap (UFBoot) and supports outgroup rooting.
+
+#     Parameters:
+#     alignment_file: Path to alignment (FASTA, PHYLIP, etc.).
+#     tree_file: Optional Newick tree. If None, IQ-TREE infers one.
+#     model: Substitution model (default 'MFP').
+#     threads: Number of CPU threads.
+#     prefix: Output file prefix.
+#     output_dir: Directory for output files (optional).
+#     sh_alrt_reps: SH-aLRT replicates (default: 1000).
+#     ufboot_reps: UFBoot replicates (default: None → skip).
+#     outgroups: Outgroup taxa (comma-separated string or path to text file with one name per line).
+#     """
+
+#     # Ensure output directory exists
+#     if output_dir:
+#         os.makedirs(output_dir, exist_ok=True)
+#         prefix_path = os.path.join(output_dir, prefix)
+#     else:
+#         prefix_path = prefix
+    
+#     # Build base command
+#     command = [
+#         "iqtree2",
+#         "-s", alignment_file,
+#         "-m", model,
+#         "--ancestral",
+#         "-T", str(threads),
+#         "--alrt", str(sh_alrt_reps),
+#         "--prefix", prefix_path
+#     ]
+    
+#     # Add bootstrap if requested
+#     if ufboot_reps:
+#         command.extend(["-B", str(ufboot_reps)])
+    
+#     # Add tree file if provided
+#     if tree_file:
+#         command.extend(["-t", tree_file])
+    
+#     # Handle outgroups
+#     if outgroups:
+#         if os.path.isfile(outgroups):  # If it's a file, read and join
+#             with open(outgroups) as f:
+#                 outgroup_list = [line.strip() for line in f if line.strip()]
+#             outgroup_str = ",".join(outgroup_list)
+#         else:
+#             outgroup_str = outgroups  # Assume it's already comma-separated
+#         command.extend(["-o", outgroup_str])
+
+#     # Run IQ-TREE
+#     subprocess.run(command, check=True)
+#     print(f"IQ-TREE ASR completed. Results saved with prefix '{prefix_path}'")
+
+# import pandas as pd
 
 def parse_blast_output(blast_out_fp):
     """
