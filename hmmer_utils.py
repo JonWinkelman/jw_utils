@@ -11,6 +11,78 @@ from pathlib import Path
 from tqdm import tqdm
 
 
+
+from pathlib import Path
+import subprocess
+
+def run_hmmbuild(
+    hmmfile,
+    msafile,
+    hmmbuild_exe="hmmbuild",
+    **kwargs,
+):
+    """
+    Run HMMER hmmbuild.
+
+    Parameters
+    ----------
+    hmmfile : str or Path
+        Output HMM file.
+    msafile : str or Path
+        Input multiple sequence alignment.
+    hmmbuild_exe : str, default="hmmbuild"
+        Path to hmmbuild executable.
+    **kwargs
+        Additional hmmbuild options.
+
+        Boolean values become flags::
+
+            amino=True
+            fast=True
+            hand=True
+
+        Other values become option/value pairs::
+
+            cpu=8
+            n="AsnC_HOG1"
+            symfrac=0.7
+            informat="afa"
+            seed=1
+
+        Underscores are converted to hyphens::
+
+            maxinsertlen=20
+            mxfile="BLOSUM62.txt"
+
+    Returns
+    -------
+    subprocess.CompletedProcess
+    """
+    cmd = [hmmbuild_exe]
+
+    for key, value in kwargs.items():
+        opt = "--" + key.replace("_", "-")
+
+        if value is None or value is False:
+            continue
+        elif value is True:
+            cmd.append(opt)
+        else:
+            cmd.extend([opt, str(value)])
+
+    cmd.extend([str(hmmfile), str(msafile)])
+
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    return result
+
+
+
 def run_simple_searches(hmm_profile_path, results_dir, proteome_dir, eval_thresh=1e-6):
     """
     Run HMMER searches against all proteomes in a directory and return

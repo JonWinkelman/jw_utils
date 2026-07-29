@@ -9,6 +9,11 @@ from scipy.stats import norm
 from scipy.stats import gaussian_kde
 
 
+def rgb_to_mplcolor(rgb_string):
+    "return matplotlib formatted color list from a rgb string, 'rgb(x,y,z,)'"
+    return [int(c)/255 for c in rgb_string.strip('rgb',).strip('(').strip(')').split(',')]
+
+
 def density_based_x_jitter(
     yvals: np.ndarray,
     center: float,

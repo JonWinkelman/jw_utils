@@ -257,6 +257,179 @@ def _append_iqtree_options(
             command.append(str(value))
 
 
+# def run_iqtree_asr(
+#     alignment_file,
+#     tree_file=None,
+#     model="MFP",
+#     threads=2,
+#     prefix="my_asr",
+#     output_dir=None,
+#     sh_alrt_reps=1000,
+#     ufboot_reps=None,
+#     outgroups=None,
+#     *,
+#     fixed_topology=False,
+#     iqtree_executable="iqtree2",
+#     iqtree_options=None,
+#     **iqtree_kwargs,
+# ):
+#     """
+#     Run IQ-TREE ancestral sequence reconstruction.
+
+#     By default, a supplied tree is passed with ``-t`` and is therefore used
+#     as a starting tree for topology searching. Set ``fixed_topology=True``
+#     to pass it with ``-te``, which keeps its topology fixed while allowing
+#     IQ-TREE to optimize branch lengths and model parameters.
+
+#     Parameters
+#     ----------
+#     alignment_file : str or os.PathLike
+#         Path to the sequence alignment.
+
+#     tree_file : str or os.PathLike, optional
+#         Path to a Newick tree. If omitted, IQ-TREE infers a tree.
+
+#     model : str, default="MFP"
+#         IQ-TREE substitution model or ModelFinder specification.
+
+#     threads : int or str, default=2
+#         Number of CPU threads. IQ-TREE values such as "AUTO" are also allowed.
+
+#     prefix : str, default="my_asr"
+#         Output-file prefix.
+
+#     output_dir : str or os.PathLike, optional
+#         Directory for output files.
+
+#     sh_alrt_reps : int or None, default=1000
+#         Number of SH-aLRT replicates. Set to None or 0 to skip SH-aLRT.
+
+#     ufboot_reps : int or None, default=None
+#         Number of ultrafast-bootstrap replicates.
+
+#     outgroups : str or os.PathLike, optional
+#         A comma-separated taxon list or a text file containing one taxon
+#         per line.
+
+#     fixed_topology : bool, default=False
+#         If True, use ``-te tree_file`` instead of ``-t tree_file``.
+#         Requires ``tree_file``.
+
+#     iqtree_executable : str, default="iqtree2"
+#         IQ-TREE executable name or path, such as "iqtree2" or "iqtree3".
+
+#     iqtree_options : mapping, optional
+#         Additional IQ-TREE options. Dictionary keys may be exact command-line
+#         flags or Python-style names.
+
+#         Examples::
+
+#             iqtree_options={
+#                 "--seed": 123,
+#                 "--redo": True,
+#                 "-rlen": [0.01, 0.1, 1.0],
+#             }
+
+#     **iqtree_kwargs
+#         Additional IQ-TREE options using Python-compatible keyword names.
+
+#         Examples::
+
+#             seed=123
+#             redo=True
+#             safe=True
+#             date_options="-u 0"
+#             branch_scale=0.5
+
+#         Underscores are converted to hyphens, so ``branch_scale`` becomes
+#         ``--branch-scale``.
+
+#     Returns
+#     -------
+#     subprocess.CompletedProcess
+#         Result returned by ``subprocess.run``.
+
+#     Notes
+#     -----
+#     Existing calls remain valid because all newly added named parameters
+#     occur after ``*`` and therefore cannot alter the meaning of existing
+#     positional arguments.
+#     """
+#     alignment_file = os.fspath(alignment_file)
+
+#     if tree_file is not None:
+#         tree_file = os.fspath(tree_file)
+
+#     if fixed_topology and tree_file is None:
+#         raise ValueError(
+#             "fixed_topology=True requires tree_file to be provided."
+#         )
+
+#     if output_dir is not None:
+#         output_dir = os.fspath(output_dir)
+#         os.makedirs(output_dir, exist_ok=True)
+#         prefix_path = os.path.join(output_dir, prefix)
+#     else:
+#         prefix_path = prefix
+
+#     command = [
+#         iqtree_executable,
+#         "-s",
+#         alignment_file,
+#         "-m",
+#         str(model),
+#         "--ancestral",
+#         "-T",
+#         str(threads),
+#         "--prefix",
+#         prefix_path,
+#     ]
+
+#     if sh_alrt_reps:
+#         command.extend(["--alrt", str(sh_alrt_reps)])
+
+#     if ufboot_reps:
+#         command.extend(["-B", str(ufboot_reps)])
+
+#     if tree_file is not None:
+#         tree_option = "-te" if fixed_topology else "-t"
+#         command.extend([tree_option, tree_file])
+
+#     if outgroups:
+#         outgroups_path = os.fspath(outgroups)
+
+#         if os.path.isfile(outgroups_path):
+#             with open(outgroups_path, encoding="utf-8") as handle:
+#                 outgroup_list = [
+#                     line.strip()
+#                     for line in handle
+#                     if line.strip()
+#                 ]
+#             outgroup_string = ",".join(outgroup_list)
+#         else:
+#             outgroup_string = outgroups_path
+
+#         command.extend(["-o", outgroup_string])
+
+#     if iqtree_options is not None:
+#         if not isinstance(iqtree_options, Mapping):
+#             raise TypeError("iqtree_options must be a mapping or None.")
+#         _append_iqtree_options(command, iqtree_options)
+
+#     _append_iqtree_options(command, iqtree_kwargs)
+
+#     print(f"Running: {shlex.join(command)}")
+
+#     result = subprocess.run(command, check=True)
+
+#     print(
+#         "IQ-TREE ASR completed. "
+#         f"Results saved with prefix '{prefix_path}'"
+#     )
+
+#     return result
+
+
 def run_iqtree_asr(
     alignment_file,
     tree_file=None,
@@ -307,9 +480,16 @@ def run_iqtree_asr(
     ufboot_reps : int or None, default=None
         Number of ultrafast-bootstrap replicates.
 
-    outgroups : str or os.PathLike, optional
-        A comma-separated taxon list or a text file containing one taxon
-        per line.
+    outgroups : str, os.PathLike, or iterable of str, optional
+        Outgroup taxa used to root the output tree. May be supplied as:
+
+        - one taxon name;
+        - a comma-separated string;
+        - a text file containing one taxon per line; or
+        - an iterable of taxon names.
+
+        Multiple taxa are passed to IQ-TREE as a comma-separated value for
+        the ``-o`` option.
 
     fixed_topology : bool, default=False
         If True, use ``-te tree_file`` instead of ``-t tree_file``.
@@ -322,38 +502,13 @@ def run_iqtree_asr(
         Additional IQ-TREE options. Dictionary keys may be exact command-line
         flags or Python-style names.
 
-        Examples::
-
-            iqtree_options={
-                "--seed": 123,
-                "--redo": True,
-                "-rlen": [0.01, 0.1, 1.0],
-            }
-
     **iqtree_kwargs
         Additional IQ-TREE options using Python-compatible keyword names.
-
-        Examples::
-
-            seed=123
-            redo=True
-            safe=True
-            date_options="-u 0"
-            branch_scale=0.5
-
-        Underscores are converted to hyphens, so ``branch_scale`` becomes
-        ``--branch-scale``.
 
     Returns
     -------
     subprocess.CompletedProcess
         Result returned by ``subprocess.run``.
-
-    Notes
-    -----
-    Existing calls remain valid because all newly added named parameters
-    occur after ``*`` and therefore cannot alter the meaning of existing
-    positional arguments.
     """
     alignment_file = os.fspath(alignment_file)
 
@@ -395,20 +550,9 @@ def run_iqtree_asr(
         tree_option = "-te" if fixed_topology else "-t"
         command.extend([tree_option, tree_file])
 
-    if outgroups:
-        outgroups_path = os.fspath(outgroups)
+    outgroup_string = _format_iqtree_outgroups(outgroups)
 
-        if os.path.isfile(outgroups_path):
-            with open(outgroups_path, encoding="utf-8") as handle:
-                outgroup_list = [
-                    line.strip()
-                    for line in handle
-                    if line.strip()
-                ]
-            outgroup_string = ",".join(outgroup_list)
-        else:
-            outgroup_string = outgroups_path
-
+    if outgroup_string is not None:
         command.extend(["-o", outgroup_string])
 
     if iqtree_options is not None:
@@ -429,67 +573,82 @@ def run_iqtree_asr(
 
     return result
 
+from collections.abc import Iterable, Mapping
+import os
+import shlex
+import subprocess
 
-# def run_iqtree_asr(alignment_file, tree_file=None, model='MFP',
-#                    threads=2, prefix='my_asr', output_dir=None,
-#                    sh_alrt_reps=1000, ufboot_reps=None, outgroups=None):
-#     """
-#     Runs IQ-TREE ancestral sequence reconstruction with SH-aLRT support.
-#     Optionally also runs ultrafast bootstrap (UFBoot) and supports outgroup rooting.
 
-#     Parameters:
-#     alignment_file: Path to alignment (FASTA, PHYLIP, etc.).
-#     tree_file: Optional Newick tree. If None, IQ-TREE infers one.
-#     model: Substitution model (default 'MFP').
-#     threads: Number of CPU threads.
-#     prefix: Output file prefix.
-#     output_dir: Directory for output files (optional).
-#     sh_alrt_reps: SH-aLRT replicates (default: 1000).
-#     ufboot_reps: UFBoot replicates (default: None → skip).
-#     outgroups: Outgroup taxa (comma-separated string or path to text file with one name per line).
-#     """
+def _format_iqtree_outgroups(outgroups):
+    """
+    Convert an outgroup specification into IQ-TREE's comma-separated format.
 
-#     # Ensure output directory exists
-#     if output_dir:
-#         os.makedirs(output_dir, exist_ok=True)
-#         prefix_path = os.path.join(output_dir, prefix)
-#     else:
-#         prefix_path = prefix
-    
-#     # Build base command
-#     command = [
-#         "iqtree2",
-#         "-s", alignment_file,
-#         "-m", model,
-#         "--ancestral",
-#         "-T", str(threads),
-#         "--alrt", str(sh_alrt_reps),
-#         "--prefix", prefix_path
-#     ]
-    
-#     # Add bootstrap if requested
-#     if ufboot_reps:
-#         command.extend(["-B", str(ufboot_reps)])
-    
-#     # Add tree file if provided
-#     if tree_file:
-#         command.extend(["-t", tree_file])
-    
-#     # Handle outgroups
-#     if outgroups:
-#         if os.path.isfile(outgroups):  # If it's a file, read and join
-#             with open(outgroups) as f:
-#                 outgroup_list = [line.strip() for line in f if line.strip()]
-#             outgroup_str = ",".join(outgroup_list)
-#         else:
-#             outgroup_str = outgroups  # Assume it's already comma-separated
-#         command.extend(["-o", outgroup_str])
+    Parameters
+    ----------
+    outgroups : str, os.PathLike, or iterable of str
+        One of:
 
-#     # Run IQ-TREE
-#     subprocess.run(command, check=True)
-#     print(f"IQ-TREE ASR completed. Results saved with prefix '{prefix_path}'")
+        - A single taxon name.
+        - A comma-separated string of taxon names.
+        - A path to a text file containing one taxon per line.
+        - An iterable of taxon names.
 
-# import pandas as pd
+    Returns
+    -------
+    str or None
+        Comma-separated outgroup names suitable for IQ-TREE's ``-o`` option,
+        or None if no outgroups were supplied.
+    """
+    if outgroups is None:
+        return None
+
+    # Strings may represent a taxon, comma-separated taxa, or a filename.
+    if isinstance(outgroups, (str, os.PathLike)):
+        value = os.fspath(outgroups)
+
+        if os.path.isfile(value):
+            with open(value, encoding="utf-8") as handle:
+                taxa = [
+                    line.strip()
+                    for line in handle
+                    if line.strip() and not line.lstrip().startswith("#")
+                ]
+        else:
+            taxa = [
+                taxon.strip()
+                for taxon in value.split(",")
+                if taxon.strip()
+            ]
+
+    # Accept lists, tuples, sets, pandas Index objects, NumPy arrays, etc.
+    elif isinstance(outgroups, Iterable):
+        taxa = [
+            os.fspath(taxon).strip()
+            if isinstance(taxon, os.PathLike)
+            else str(taxon).strip()
+            for taxon in outgroups
+        ]
+        taxa = [taxon for taxon in taxa if taxon]
+
+    else:
+        raise TypeError(
+            "outgroups must be a taxon name, comma-separated string, "
+            "path to a text file, iterable of taxon names, or None."
+        )
+
+    if not taxa:
+        raise ValueError("outgroups was provided but contained no taxon names.")
+
+    # Remove duplicates while preserving input order.
+    taxa = list(dict.fromkeys(taxa))
+
+    if any("," in taxon for taxon in taxa):
+        raise ValueError(
+            "Outgroup taxon names cannot contain commas because IQ-TREE "
+            "uses commas to separate multiple outgroups."
+        )
+
+    return ",".join(taxa)
 
 def parse_blast_output(blast_out_fp):
     """
@@ -1102,3 +1261,99 @@ def write_generax_families(
         f"Wrote {n} families to "
         f"{output_fp}"
     )
+
+from copy import deepcopy
+from pathlib import Path
+from random import Random
+from typing import Optional, Union
+
+from Bio import Phylo
+from Bio.Phylo.BaseTree import Tree
+from Bio.Phylo.Newick import Clade
+
+
+def resolve_polytomies(
+    tree: Tree,
+    *,
+    randomize: bool = False,
+    seed: Optional[int] = None,
+    copy_tree: bool = True,
+    allow_root_trifurcation: bool = False,
+) -> Tree:
+    """
+    Resolve all polytomies into an arbitrary binary topology.
+
+    New internal branches are assigned length 0.0, preserving the original
+    root-to-tip distances. The new resolutions have no phylogenetic support
+    and should be interpreted only as arbitrary resolutions of unresolved
+    relationships.
+
+    Parameters
+    ----------
+    tree : Bio.Phylo.BaseTree.Tree
+        Input phylogenetic tree.
+
+    randomize : bool, default=False
+        If True, randomly select pairs of child clades when resolving each
+        polytomy. If False, resolve children deterministically according to
+        their existing order.
+
+    seed : int, optional
+        Random seed used when ``randomize=True``.
+
+    copy_tree : bool, default=True
+        If True, resolve a deep copy and leave the input tree unchanged.
+        If False, modify the input tree in place.
+
+    allow_root_trifurcation : bool, default=False
+        If True, allow the root to have three children, as is conventional
+        for an unrooted binary tree. All other internal nodes are restricted
+        to two children.
+
+    Returns
+    -------
+    Bio.Phylo.BaseTree.Tree
+        Tree with all relevant polytomies resolved.
+
+    Notes
+    -----
+    This function does not infer the biologically correct resolution.
+    It inserts arbitrary zero-length branches only to produce a topology
+    accepted by software requiring bifurcating trees.
+    """
+    if not isinstance(tree, Tree):
+        raise TypeError(
+            "tree must be a Bio.Phylo.BaseTree.Tree instance."
+        )
+
+    resolved = deepcopy(tree) if copy_tree else tree
+    rng = Random(seed)
+
+    def resolve_clade(clade: Clade, *, is_root: bool = False) -> None:
+        # Resolve descendants first.
+        for child in list(clade.clades):
+            resolve_clade(child, is_root=False)
+
+        max_children = 3 if is_root and allow_root_trifurcation else 2
+
+        while len(clade.clades) > max_children:
+            if randomize:
+                indices = sorted(
+                    rng.sample(range(len(clade.clades)), 2),
+                    reverse=True,
+                )
+                child_a = clade.clades.pop(indices[0])
+                child_b = clade.clades.pop(indices[1])
+            else:
+                child_b = clade.clades.pop()
+                child_a = clade.clades.pop()
+
+            new_clade = Clade(
+                branch_length=0.0,
+                confidence=None,
+                clades=[child_a, child_b],
+            )
+            clade.clades.append(new_clade)
+
+    resolve_clade(resolved.root, is_root=True)
+    return resolved

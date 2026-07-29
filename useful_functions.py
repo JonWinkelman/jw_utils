@@ -2,6 +2,26 @@ import random
 from time import sleep
 import pandas as pd
 
+def chunk_list(lst, size):
+    """
+    Split a list into chunks of length `size`, with the final chunk
+    containing any remaining elements.
+
+    Parameters
+    ----------
+    lst : list
+        List to split.
+    size : int
+        Maximum size of each chunk.
+
+    Returns
+    -------
+    list[list]
+        List of chunks.
+    """
+    return [lst[i:i + size] for i in range(0, len(lst), size)]
+
+
 def move_cursor(mins):
     "move cursor in random dir once every min for given minutes"
     

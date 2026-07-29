@@ -173,40 +173,84 @@ def make_summary_df(json_fp):
     return summary_df 
 
 
+# def make_summary_df_full(json_fp):
+#     summary_d = parse_ncbi_summary(json_fp)
+#     cols = {'accession':[], 'organism_name':[], 'strain':[],'tax_id':[], 'completeness':[], 'contamination':[], 'contig_n50':[], 'assembly_level':[] }
+#     for acc, report in summary_d.items():
+#         cols['accession'].append(acc)
+#         t = report.get('checkm_info')
+#         if t:
+#             cols['completeness'].append(t.get('completeness'))
+#             cols['contamination'].append(t.get('contamination'))
+#         else:
+#             cols['completeness'].append(None)
+#             cols['contamination'].append(None)
+            
+#         t = report.get('assembly_stats')
+#         if t:
+#             cols['contig_n50'].append(t.get('contig_n50'))
+#         else:
+#             cols['contig_n50'].append(None)
+#         t = report['assembly_info']
+#         if t:
+#             cols['assembly_level'].append(t['assembly_level'])
+#         else:
+#             cols['assembly_level'].append(None)
+            
+#         cols['organism_name'].append(report['organism'].get('organism_name'))
+#         cols['tax_id'].append(report['organism'].get('tax_id'))
+#         t = report['organism'].get('infraspecific_names')
+#         if t:
+#             cols['strain'].append(t.get('strain', ''))
+#         else:
+#             cols['strain'].append('')
+#     summary_df = pd.DataFrame(cols).set_index('accession')
+#     summary_df['full_name'] = summary_df['organism_name'].str.cat(summary_df['strain'], sep='__')
+#     return summary_df
+
+
 def make_summary_df_full(json_fp):
     summary_d = parse_ncbi_summary(json_fp)
-    cols = {'accession':[], 'organism_name':[], 'strain':[],'tax_id':[], 'completeness':[], 'contamination':[], 'contig_n50':[], 'assembly_level':[] }
+
+    rows = []
+
     for acc, report in summary_d.items():
-        cols['accession'].append(acc)
-        t = report.get('checkm_info')
-        if t:
-            cols['completeness'].append(t.get('completeness'))
-            cols['contamination'].append(t.get('contamination'))
-        else:
-            cols['completeness'].append(None)
-            cols['contamination'].append(None)
-            
-        t = report.get('assembly_stats')
-        if t:
-            cols['contig_n50'].append(t.get('contig_n50'))
-        else:
-            cols['contig_n50'].append(None)
-        t = report['assembly_info']
-        if t:
-            cols['assembly_level'].append(t['assembly_level'])
-        else:
-            cols['assembly_level'].append(None)
-            
-        cols['organism_name'].append(report['organism'].get('organism_name'))
-        cols['tax_id'].append(report['organism'].get('tax_id'))
-        t = report['organism'].get('infraspecific_names')
-        if t:
-            cols['strain'].append(t.get('strain'))
-        else:
-            cols['strain'].append(None)
-    
-    return pd.DataFrame(cols).set_index('accession')
-    
+        checkm_info = report.get("checkm_info") or {}
+        assembly_stats = report.get("assembly_stats") or {}
+        assembly_info = report.get("assembly_info") or {}
+        organism = report.get("organism") or {}
+        infraspecific_names = organism.get("infraspecific_names") or {}
+
+        organism_name = organism.get("organism_name")
+        strain = infraspecific_names.get("strain", "")
+
+        rows.append(
+            {
+                "accession": acc,
+                "organism_name": organism_name,
+                "strain": strain,
+                "tax_id": organism.get("tax_id"),
+                "completeness": checkm_info.get("completeness"),
+                "contamination": checkm_info.get("contamination"),
+                "contig_n50": assembly_stats.get("contig_n50"),
+                "assembly_level": assembly_info.get("assembly_level"),
+            }
+        )
+
+    summary_df = pd.DataFrame(rows).set_index("accession")
+
+    summary_df["full_name"] = summary_df.apply(
+        lambda row: (
+            f"{row['organism_name']}__{row['strain']}"
+            if pd.notna(row["organism_name"]) and row["strain"]
+            else row["organism_name"]
+        ),
+        axis=1,
+    )
+
+    return summary_df
+
+
 
 def write_summary_to_csv(summary_json_fp, out_fp):
     df = make_summary_df(summary_json_fp)
