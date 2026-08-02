@@ -84,6 +84,137 @@ def get_start_codon_region(gene_row, genome_dict, upstream=200, downstream=10):
         raise ValueError(f"Unknown strand: {strand}")
 
 
+def get_end_codon_region(gene_row, genome_dict, upstream=10, downstream=200):
+    """
+    Return sequence relative to the translational end site.
+
+    The returned sequence is oriented 5' to 3' relative to the gene. ``upstream``
+    therefore extends into the end of the coding sequence, while ``downstream``
+    extends past the stop codon in the direction of transcription.
+
+    Designed to work with rows from
+    ``jw_utils.parse_gff.make_simple_annot_df(..., start_end=True,
+    contig=True)``. GFF coordinates are interpreted as 1-based and inclusive.
+
+    For '+' strand:
+        end-upstream : end+downstream
+
+    For '-' strand:
+        reverse complement of
+        start-1-downstream : start-1+upstream
+
+    Parameters
+    ----------
+    gene_row : pd.Series or dict-like
+        Must contain 'start', 'end', 'strand', and 'contig'.
+    genome_dict : dict
+        Mapping from contig ID to genomic sequence.
+    upstream : int, default 10
+        Number of bases on the coding side of the translational end site.
+    downstream : int, default 200
+        Number of bases beyond the translational end site.
+
+    Returns
+    -------
+    str
+        Sequence oriented 5' to 3' relative to the gene.
+    """
+    if upstream < 0 or downstream < 0:
+        raise ValueError("upstream and downstream must be non-negative")
+
+    seq = genome_dict[gene_row["contig"]]
+    start = int(gene_row["start"])
+    end = int(gene_row["end"])
+    strand = gene_row["strand"]
+
+    if strand == "+":
+        left = max(0, end - upstream)
+        right = min(len(seq), end + downstream)
+        return str(seq[left:right])
+
+    if strand == "-":
+        end_boundary = start - 1
+        left = max(0, end_boundary - downstream)
+        right = min(len(seq), end_boundary + upstream)
+        return str(Seq(seq[left:right]).reverse_complement())
+
+    raise ValueError(f"Unknown strand: {strand}")
+
+
+def get_divergent_intergenic_region(
+    target_row,
+    operon_row,
+    genome_dict,
+    orient_to="operon",
+):
+    """
+    Extract the exact interval between divergently transcribed CDS features.
+
+    GFF coordinates are interpreted as 1-based and inclusive. For a valid
+    divergent pair, the left CDS is on the ``-`` strand and the right CDS is
+    on the ``+`` strand. The returned sequence excludes both CDS features.
+
+    Parameters
+    ----------
+    astR_row, operon_row : pd.Series or dict-like
+        Each must contain ``start``, ``end``, ``strand``, and ``contig``.
+    genome_dict : dict
+        Mapping from contig ID to genomic sequence.
+    orient_to : {'operon', 'astR', 'genomic'}, default 'operon'
+        Orient the returned sequence 5' to 3' relative to the selected gene.
+        ``'genomic'`` returns the forward genomic strand.
+
+    Returns
+    -------
+    str
+        Intergenic sequence, excluding both bounding CDS features.
+
+    Raises
+    ------
+    ValueError
+        If the features are on different contigs, overlap, are not divergent,
+        or ``orient_to`` is invalid.
+    """
+    if target_row["contig"] != operon_row["contig"]:
+        raise ValueError("AstR and operon genes are on different contigs")
+
+    genes = sorted(
+        [target_row, operon_row],
+        key=lambda row: (int(row["start"]), int(row["end"])),
+    )
+    left_gene, right_gene = genes
+
+    if left_gene["strand"] != "-" or right_gene["strand"] != "+":
+        raise ValueError(
+            "Features are not divergent: expected left '-' and right '+'"
+        )
+
+    left_end = int(left_gene["end"])
+    right_start = int(right_gene["start"])
+    if left_end >= right_start:
+        raise ValueError("Bounding CDS features overlap")
+
+    seq = genome_dict[target_row["contig"]]
+    intergenic_seq = str(seq[left_end:right_start - 1])
+
+    if orient_to == "genomic":
+        return intergenic_seq
+    if orient_to == "operon":
+        target_strand = operon_row["strand"]
+    elif orient_to == "astR":
+        target_strand = target_row["strand"]
+    else:
+        raise ValueError(
+            "orient_to must be 'operon', 'astR', or 'genomic'"
+        )
+
+    if target_strand == "+":
+        return intergenic_seq
+    if target_strand == "-":
+        return str(Seq(intergenic_seq).reverse_complement())
+    raise ValueError(f"Unknown strand: {target_strand}")
+
+
 
 def flip_block(df):
     """
