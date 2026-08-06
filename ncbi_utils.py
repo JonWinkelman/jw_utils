@@ -7,6 +7,150 @@ import tempfile
 import shutil
 from pathlib import Path
 
+
+def build_gtdb_style_taxonomy(
+    selected_assemblies_fp,
+    taxonomy_summary_fp,
+    taxonomy_table_fp,
+    gtdb_mapping_fp,
+):
+    """Join NCBI assembly metadata to fixed-rank, GTDB-style taxonomy.
+
+    Parameters
+    ----------
+    selected_assemblies_fp : str or pathlib.Path
+        Project assembly table containing ``Assembly Accession``,
+        ``Organism Taxonomic ID``, ``Organism Name``, and optionally
+        ``taxonomic_group``.
+    taxonomy_summary_fp : str or pathlib.Path
+        ``taxonomy_summary.tsv`` produced by NCBI Datasets.
+    taxonomy_table_fp : str or pathlib.Path
+        Destination for the wide rank-column table.
+    gtdb_mapping_fp : str or pathlib.Path
+        Destination for the two-column accession-to-taxonomy mapping.
+
+    Returns
+    -------
+    pandas.DataFrame
+        The wide taxonomy table. Missing formal ranks remain empty in the TSV
+        and appear as an empty prefixed rank (for example, ``c__``) in the
+        GTDB-style lineage.
+    """
+    selected_assemblies_fp = Path(selected_assemblies_fp)
+    taxonomy_summary_fp = Path(taxonomy_summary_fp)
+    taxonomy_table_fp = Path(taxonomy_table_fp)
+    gtdb_mapping_fp = Path(gtdb_mapping_fp)
+
+    assemblies = pd.read_csv(
+        selected_assemblies_fp,
+        sep="\t",
+        dtype={"Organism Taxonomic ID": "string"},
+    )
+    ncbi_taxonomy = pd.read_csv(
+        taxonomy_summary_fp,
+        sep="\t",
+        dtype={"Taxid": "string", "Query": "string"},
+        keep_default_na=False,
+    )
+
+    required_assembly_columns = {
+        "Assembly Accession",
+        "Organism Taxonomic ID",
+        "Organism Name",
+    }
+    missing_columns = required_assembly_columns.difference(assemblies.columns)
+    if missing_columns:
+        raise ValueError(
+            "Assembly table is missing columns: "
+            + ", ".join(sorted(missing_columns))
+        )
+
+    rank_sources = {
+        "domain": "Domain/Realm name",
+        "phylum": "Phylum name",
+        "class": "Class name",
+        "order": "Order name",
+        "family": "Family name",
+        "genus": "Genus name",
+        "species": "Species name",
+    }
+    missing_taxonomy_columns = set(rank_sources.values()).difference(
+        ncbi_taxonomy.columns
+    )
+    if missing_taxonomy_columns:
+        raise ValueError(
+            "NCBI taxonomy table is missing columns: "
+            + ", ".join(sorted(missing_taxonomy_columns))
+        )
+
+    taxonomy_columns = ["Taxid", *rank_sources.values()]
+    if ncbi_taxonomy["Taxid"].duplicated().any():
+        duplicated = ncbi_taxonomy.loc[
+            ncbi_taxonomy["Taxid"].duplicated(keep=False), "Taxid"
+        ].unique()
+        raise ValueError(f"Duplicate NCBI taxonomy records: {', '.join(duplicated)}")
+
+    output = assemblies.merge(
+        ncbi_taxonomy[taxonomy_columns],
+        left_on="Organism Taxonomic ID",
+        right_on="Taxid",
+        how="left",
+        validate="many_to_one",
+        indicator=True,
+    )
+    unmatched = output.loc[output["_merge"] != "both", "Organism Taxonomic ID"]
+    if not unmatched.empty:
+        raise ValueError(
+            "No NCBI taxonomy record for taxids: "
+            + ", ".join(unmatched.astype(str))
+        )
+
+    output = output.rename(
+        columns={
+            "Assembly Accession": "assembly_accession",
+            "Organism Taxonomic ID": "taxid",
+            "Organism Name": "organism_name",
+            **{source: rank for rank, source in rank_sources.items()},
+        }
+    )
+    output = output.drop(columns=["Taxid", "_merge"])
+    output[list(rank_sources)] = output[list(rank_sources)].fillna("")
+
+    prefixes = {
+        "domain": "d__",
+        "phylum": "p__",
+        "class": "c__",
+        "order": "o__",
+        "family": "f__",
+        "genus": "g__",
+        "species": "s__",
+    }
+    output["gtdb_taxonomy"] = output.apply(
+        lambda row: ";".join(
+            f"{prefixes[rank]}{row[rank]}" for rank in prefixes
+        ),
+        axis=1,
+    )
+
+    leading_columns = ["assembly_accession", "taxid", "organism_name"]
+    if "taxonomic_group" in output.columns:
+        leading_columns.append("taxonomic_group")
+    output = output[
+        leading_columns + list(rank_sources) + ["gtdb_taxonomy"]
+    ].sort_values("assembly_accession").reset_index(drop=True)
+
+    taxonomy_table_fp.parent.mkdir(parents=True, exist_ok=True)
+    gtdb_mapping_fp.parent.mkdir(parents=True, exist_ok=True)
+    output.to_csv(taxonomy_table_fp, sep="\t", index=False)
+    output[["assembly_accession", "gtdb_taxonomy"]].to_csv(
+        gtdb_mapping_fp,
+        sep="\t",
+        index=False,
+        header=False,
+    )
+    return output
+
+
 def copy_ncbi_files(ncbi_data_dir, dest_dir, suffix = '.faa'):
     """Copies internal files from a ncbi data dir to a given dir
     
